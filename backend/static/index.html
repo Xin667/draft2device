@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Circuit Diagram Viewer (Prototype)</title>
+<style>
+  :root {
+    --bg: #f4f5f7;
+    --panel: #ffffff;
+    --text: #1b1e24;
+    --muted: #5b6270;
+    --border: #d8dbe2;
+    --accent: #2f6fed;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14161a;
+      --panel: #1d2026;
+      --text: #e8e9ec;
+      --muted: #9aa0ac;
+      --border: #33363e;
+      --accent: #6d9bff;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  header {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  header h1 { font-size: 16px; margin: 0; margin-right: 12px; }
+  header .sub { color: var(--muted); font-size: 12px; }
+  button, input {
+    font: inherit;
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 10px;
+  }
+  button { cursor: pointer; }
+  button.primary { background: var(--accent); color: white; border-color: var(--accent); }
+  button:disabled { opacity: 0.5; cursor: default; }
+  input[type=text] { width: 260px; }
+  #status { font-size: 12px; color: var(--muted); margin-left: auto; }
+  #layout {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 0;
+    height: calc(100vh - 57px);
+  }
+  #canvasWrap { position: relative; display: flex; flex-direction: column; min-height: 0; }
+  #meta { padding: 14px 20px 0; flex: none; }
+  #meta h2 { margin: 0 0 4px; font-size: 18px; }
+  #meta p { margin: 0 0 10px; color: var(--muted); font-size: 13px; max-width: 70ch; }
+
+  #diagramToolbar {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    padding: 0 20px 10px;
+    flex: none;
+    border-bottom: 1px solid var(--border);
+  }
+  .paneControls { margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+  .paneControls button { padding: 4px 9px; }
+  .zoomLevel { min-width: 40px; text-align: center; display: inline-block; }
+
+  svg { display: block; }
+  .box-rect { fill: var(--panel); stroke: var(--border); stroke-width: 1.5; }
+  .box-rect.dim { opacity: 0.35; }
+  .box-rect.hl { stroke: var(--accent); stroke-width: 2.5; }
+  .box-title { font-size: 13px; font-weight: 600; fill: var(--text); }
+  .box-cat { font-size: 10px; fill: var(--muted); }
+  .pin-label { font-size: 11px; fill: var(--text); }
+  .pin-dot { stroke: var(--panel); stroke-width: 1; cursor: pointer; }
+  .wire { fill: none; stroke-width: 2.5; cursor: pointer; }
+  .wire.dim { opacity: 0.15; }
+  .wire.hl { stroke-width: 5; }
+  .wire.hoverhl { stroke-width: 6px !important; opacity: 1 !important; }
+
+  #schematicPane { flex: 1; min-height: 0; overflow: auto; position: relative; }
+  #placeholder { padding: 40px; color: var(--muted); font-size: 13px; max-width: 60ch; }
+
+  #sidebar {
+    border-left: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  #sidebar h3 { font-size: 13px; margin: 0 0 6px; }
+  #stepControls { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  #stepCounter { font-size: 12px; color: var(--muted); }
+  #stepList { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+  #stepList li {
+    padding: 6px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    border: 1px solid transparent;
+  }
+  #stepList li:hover { background: var(--bg); }
+  #stepList li.active { border-color: var(--accent); background: var(--bg); font-weight: 600; }
+  #infoPanel {
+    font-size: 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+    background: var(--bg);
+    min-height: 60px;
+  }
+  #infoPanel .empty { color: var(--muted); }
+  #infoPanel dt { font-weight: 600; margin-top: 6px; }
+  #infoPanel dd { margin: 0 0 2px; color: var(--muted); }
+  #legend, #safetyNotes, #powerReqs { font-size: 12px; }
+  #legend ul, #safetyNotes ul, #powerReqs ul { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+  #safetyNotes ul, #powerReqs ul { list-style: disc; padding-left: 16px; }
+  .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+  .fileHeader { display: flex; align-items: center; justify-content: space-between; font-size: 13px; margin-bottom: 4px; }
+  .rawTextarea {
+    width: 100%; height: 160px; font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+    font-size: 11px; resize: vertical; white-space: pre; overflow: auto;
+  }
+  #rawCompare {
+    border-top: 1px solid var(--border);
+    padding: 14px 20px 20px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  .rawCompareHint { font-size: 12px; color: var(--muted); margin: 0 0 6px; }
+  #rawCompare .rawTextarea { height: 240px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Circuit Diagram Viewer <span class="sub">— test prototype, endpoint 3</span></h1>
+  <button id="btnExample">Load example (offline, no API call)</button>
+  <button id="btnCreateProject">1. Create project</button>
+  <input id="projectIdInput" type="text" placeholder="project_id">
+  <button id="btnGenerate" class="primary">2. Generate circuit diagram</button>
+  <input id="revisionMessageInput" type="text" placeholder="Änderungswunsch, z.B. &quot;LED durch Buzzer ersetzen&quot;" style="width:280px;">
+  <button id="btnRevise" title="Ändert einen bereits generierten Schaltplan gezielt - wirkt bei Bedarf automatisch bis zur Bauteil-Auswahl (Hardware) zurück, ohne die vorherigen Schritte manuell neu durchlaufen zu müssen.">3. Revise</button>
+  <span id="status"></span>
+</header>
+
+<div id="layout">
+  <div id="canvasWrap">
+    <div id="meta" style="display:none">
+      <h2 id="titleText"></h2>
+      <p id="summaryText"></p>
+    </div>
+
+    <div id="diagramToolbar">
+      <span id="schematicControls" class="paneControls">
+        <button id="btnZoomOutSchematic" title="Zoom out">&minus;</button>
+        <span id="zoomLevelSchematic" class="zoomLevel">100%</span>
+        <button id="btnZoomInSchematic" title="Zoom in">+</button>
+        <button id="btnZoomResetSchematic">reset</button>
+      </span>
+    </div>
+
+    <div id="placeholder">
+      Click "Load example" for an instant offline preview, or run the real pipeline with the buttons above
+      (needs the server running: <code>uvicorn main:app --reload</code> from the <code>colin</code> folder).
+    </div>
+
+    <div id="schematicPane" style="display:none">
+      <svg id="svg"></svg>
+    </div>
+  </div>
+
+  <div id="sidebar">
+    <div>
+      <h3>Assembly steps</h3>
+      <div id="stepControls" style="display:none">
+        <button id="btnPrevStep">&larr;</button>
+        <span id="stepCounter"></span>
+        <button id="btnNextStep">&rarr;</button>
+        <button id="btnResetSteps">show all</button>
+      </div>
+      <ol id="stepList"></ol>
+    </div>
+    <div>
+      <h3>Details</h3>
+      <div id="infoPanel"><span class="empty">Click (or hover) a component, pin or wire in the diagram for details / highlighting.</span></div>
+    </div>
+    <div id="legend" style="display:none">
+      <h3>Wire colors</h3>
+      <ul></ul>
+    </div>
+    <div id="powerReqs" style="display:none">
+      <h3>Power requirements</h3>
+      <ul></ul>
+    </div>
+    <div id="safetyNotes" style="display:none">
+      <h3>Safety notes</h3>
+      <ul></ul>
+    </div>
+  </div>
+</div>
+
+<div id="rawCompare">
+  <div class="rawCompareCol">
+    <div class="fileHeader"><strong>Input: hardware_components</strong><button class="btnCopy" data-target="rawInputText">copy</button></div>
+    <p class="rawCompareHint">Was tatsächlich als Bauteile-Liste ans Modell gegangen ist (Dummy-Liste oder echtes, normalisiertes hardware-Artefakt - siehe used_dummy_hardware_input oben im Status).</p>
+    <textarea id="rawInputText" class="rawTextarea" readonly spellcheck="false" placeholder="Noch keine Daten - erst einen Schaltplan generieren."></textarea>
+  </div>
+  <div class="rawCompareCol">
+    <div class="fileHeader"><strong>Raw Output (KI-Agent)</strong><button class="btnCopy" data-target="rawOutputText">copy</button></div>
+    <p class="rawCompareHint">Exakt das, was das Modell aus dem Input links erzeugt hat (ohne project_id/Meta-Felder) - zum direkten Abgleich mit dem Input.</p>
+    <textarea id="rawOutputText" class="rawTextarea" readonly spellcheck="false" placeholder="Noch keine Daten - erst einen Schaltplan generieren."></textarea>
+  </div>
+</div>
+
+<script>
+const SVGNS = "http://www.w3.org/2000/svg";
+
+// Fallback colors keyed by signal_type - used for pin dots (always) and as a
+// wire-color fallback if a pasted/older JSON doesn't use the fixed
+// WireColor enum from schema.py.
+const SIGNAL_COLORS = {
+  power: "#e53935", ground: "#424242", digital: "#1e88e5", analog: "#00897b",
+  pwm: "#8e24aa", i2c: "#fb8c00", spi: "#6d4c41", uart: "#43a047", other: "#9e9e9e",
+};
+// wire_color values are a fixed enum of real CSS color keywords (see
+// schema.py WireColor) - so they can be used directly as-is.
+const VALID_WIRE_COLORS = ["red","black","blue","yellow","green","orange","purple","brown","gray","white"];
+
+function wireColor(conn) {
+  if (conn.wire_color && VALID_WIRE_COLORS.includes(conn.wire_color)) return conn.wire_color;
+  return SIGNAL_COLORS[conn.signal_type] || "#888";
+}
+function pinColor(pin) {
+  return SIGNAL_COLORS[pin.signal_type] || "#888";
+}
+
+let currentData = null;
+let activeStepIndex = -1; // -1 = show all steps/connections
+
+const el = (id) => document.getElementById(id);
+const svg = el("svg");
+
+function setStatus(msg) { el("status").textContent = msg; }
+
+function escapeHtml(str) {
+  if (str == null) return "";
+  return String(str).replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  })[c]);
+}
+
+// ---------------------------------------------------------------------
+// Shared helpers: which connections touch a given component / pin - used
+// by BOTH views for hover-highlighting ("wo führt dieses Kabel hin?").
+// ---------------------------------------------------------------------
+function wireConnectionsForComponent(compId) {
+  if (!currentData) return [];
+  return currentData.connections.filter((c) => c.from_component_id === compId || c.to_component_id === compId);
+}
+function wireConnectionsForPin(compId, pinId) {
+  if (!currentData) return [];
+  return currentData.connections.filter((c) =>
+    (c.from_component_id === compId && c.from_pin_id === pinId) ||
+    (c.to_component_id === compId && c.to_pin_id === pinId));
+}
+function setHoverHighlight(connIds) {
+  const apply = (wireEls) => {
+    if (!wireEls) return;
+    Object.entries(wireEls).forEach(([id, elm]) => elm.classList.toggle("hoverhl", connIds.has(id)));
+  };
+  apply(window._wireEls);
+}
+
+// ---------------------------------------------------------------------
+// Layered layout: statt fester x/y (die ein LLM nicht zuverlässig liefern
+// kann) wird hier ein simples "von links nach rechts" Layout berechnet -
+// per BFS-Distanz jedes Bauteils vom Microcontroller (bzw. vom Bauteil mit
+// den meisten Verbindungen, falls keiner als "Microcontroller" markiert
+// ist). Das sorgt dafür, dass Kabel überwiegend in EINE Richtung
+// fortlaufend nach rechts fließen, statt in einem Grid wild hin und her zu
+// springen - genau DAS führte vorher zu abgeschnittenen/verwirrenden Kurven.
+// ---------------------------------------------------------------------
+function computeLayers(components, connections) {
+  const adj = new Map(components.map((c) => [c.id, []]));
+  connections.forEach((conn) => {
+    if (!adj.has(conn.from_component_id) || !adj.has(conn.to_component_id)) return;
+    adj.get(conn.from_component_id).push(conn.to_component_id);
+    adj.get(conn.to_component_id).push(conn.from_component_id);
+  });
+
+  const layer = new Map();
+  let roots = components.filter((c) => c.category === "Microcontroller").map((c) => c.id);
+  if (!roots.length) {
+    let best = null, bestDeg = -1;
+    components.forEach((c) => {
+      const deg = (adj.get(c.id) || []).length;
+      if (deg > bestDeg) { bestDeg = deg; best = c.id; }
+    });
+    if (best != null) roots = [best];
+  }
+
+  const queue = [];
+  roots.forEach((id) => { if (!layer.has(id)) { layer.set(id, 0); queue.push(id); } });
+  while (queue.length) {
+    const id = queue.shift();
+    const d = layer.get(id);
+    (adj.get(id) || []).forEach((otherId) => {
+      if (!layer.has(otherId)) { layer.set(otherId, d + 1); queue.push(otherId); }
+    });
+  }
+  // Nicht erreichte (isolierte) Bauteile hinten anhängen, statt sie zu verlieren.
+  let maxLayer = -1;
+  layer.forEach((v) => { maxLayer = Math.max(maxLayer, v); });
+  components.forEach((c) => { if (!layer.has(c.id)) layer.set(c.id, maxLayer + 1); });
+  return layer;
+}
+
+// ---------------------------------------------------------------------
+// Schematic view: Boxen pro Layer-Spalte gestapelt, Pins auf der Seite
+// (links/rechts), die zur Richtung der jeweiligen Verbindung passt - so
+// müssen Kabel nie rückwärts durch eine Box hindurch "loopen".
+// ---------------------------------------------------------------------
+function layoutComponents(components, connections) {
+  const boxWidth = 200;
+  const headerHeight = 46;
+  const pinRowHeight = 22;
+  const colGap = 200;
+  const rowGap = 46;
+  const marginX = 40, marginY = 40;
+
+  const layerOf = computeLayers(components, connections);
+  const byLayer = new Map();
+  components.forEach((c) => {
+    const l = layerOf.get(c.id);
+    if (!byLayer.has(l)) byLayer.set(l, []);
+    byLayer.get(l).push(c);
+  });
+  const layers = [...byLayer.keys()].sort((a, b) => a - b);
+
+  const pinSideMap = {}; // compId -> pinId -> "left" | "right"
+  components.forEach((c) => {
+    pinSideMap[c.id] = {};
+    c.pins.forEach((p) => { pinSideMap[c.id][p.id] = "right"; });
+  });
+  connections.forEach((conn) => {
+    const fromLayer = layerOf.get(conn.from_component_id);
+    const toLayer = layerOf.get(conn.to_component_id);
+    if (fromLayer == null || toLayer == null) return;
+    if (fromLayer <= toLayer) {
+      pinSideMap[conn.from_component_id][conn.from_pin_id] = "right";
+      pinSideMap[conn.to_component_id][conn.to_pin_id] = "left";
+    } else {
+      pinSideMap[conn.from_component_id][conn.from_pin_id] = "left";
+      pinSideMap[conn.to_component_id][conn.to_pin_id] = "right";
+    }
+  });
+
+  const positions = {};
+  const pinLayout = {}; // compId -> pinId -> {side, index}
+  let x = marginX;
+  layers.forEach((l) => {
+    let y = marginY;
+    byLayer.get(l).forEach((comp) => {
+      const leftPins = comp.pins.filter((p) => pinSideMap[comp.id][p.id] === "left");
+      const rightPins = comp.pins.filter((p) => pinSideMap[comp.id][p.id] !== "left");
+      const rowCount = Math.max(1, leftPins.length, rightPins.length);
+      const height = headerHeight + rowCount * pinRowHeight + 14;
+      positions[comp.id] = { x, y, width: boxWidth, height, headerHeight, pinRowHeight };
+      pinLayout[comp.id] = {};
+      leftPins.forEach((p, i) => { pinLayout[comp.id][p.id] = { side: "left", index: i }; });
+      rightPins.forEach((p, i) => { pinLayout[comp.id][p.id] = { side: "right", index: i }; });
+      y += height + rowGap;
+    });
+    x += boxWidth + colGap;
+  });
+
+  return { positions, pinLayout };
+}
+
+function pinPoint(box, side, index) {
+  return {
+    x: side === "left" ? box.x : box.x + box.width,
+    y: box.y + box.headerHeight + index * box.pinRowHeight + box.pinRowHeight / 2,
+  };
+}
+
+function clearSvg() {
+  while (svg.firstChild) svg.removeChild(svg.firstChild);
+}
+
+function showInfo(html) {
+  el("infoPanel").innerHTML = html;
+}
+
+function componentInfoHtml(comp) {
+  let html = `<strong>${escapeHtml(comp.name)}</strong> <span style="color:var(--muted)">(${escapeHtml(comp.category)})</span>`;
+  html += `<p style="margin:6px 0">${escapeHtml(comp.description)}</p>`;
+  html += `<dl style="margin:0">`;
+  comp.pins.forEach((p) => {
+    html += `<dt><span class="swatch" style="background:${pinColor(p)}"></span>${escapeHtml(p.label)} <span style="color:var(--muted)">(${p.signal_type})</span></dt>`;
+    html += `<dd>${escapeHtml(p.description)}</dd>`;
+  });
+  html += `</dl>`;
+  return html;
+}
+
+function connectionInfoHtml(conn, stepNumber) {
+  let html = `<strong>${escapeHtml(conn.from_component_id)}.${escapeHtml(conn.from_pin_id)} &rarr; ${escapeHtml(conn.to_component_id)}.${escapeHtml(conn.to_pin_id)}</strong>`;
+  html += `<p style="margin:6px 0">${escapeHtml(conn.description)}</p>`;
+  html += `<div style="color:var(--muted)">signal: ${conn.signal_type} · wire: <span class="swatch" style="background:${wireColor(conn)}"></span>${conn.wire_color}</div>`;
+  if (stepNumber != null) html += `<div style="color:var(--muted)">belongs to assembly step ${stepNumber}</div>`;
+  return html;
+}
+
+// ---------------------------------------------------------------------
+// Schematic zoom: der SVG-Inhalt bekommt ein viewBox, das GENAU den echten
+// Inhalt (inkl. der Kurven-Kontrollpunkte der Kabel!) umschließt plus etwas
+// Rand - dadurch kann nichts mehr am Rand abgeschnitten werden. Zoom ändert
+// nur width/height (der Browser skaliert das viewBox automatisch hinein);
+// #schematicPane scrollt bei Bedarf.
+// ---------------------------------------------------------------------
+let schematicZoom = 1;
+let schematicBaseW = 0, schematicBaseH = 0;
+
+function applySchematicZoom() {
+  svg.setAttribute("width", Math.max(50, schematicBaseW * schematicZoom));
+  svg.setAttribute("height", Math.max(50, schematicBaseH * schematicZoom));
+  el("zoomLevelSchematic").textContent = Math.round(schematicZoom * 100) + "%";
+}
+
+function render(data) {
+  currentData = data;
+  activeStepIndex = -1;
+
+  el("placeholder").style.display = "none";
+  el("meta").style.display = "block";
+  el("diagramToolbar").style.display = "flex";
+  el("titleText").textContent = data.title || "";
+  el("summaryText").textContent = data.summary || "";
+
+  const { positions, pinLayout } = layoutComponents(data.components, data.connections);
+
+  clearSvg();
+
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  const extend = (px, py) => {
+    minX = Math.min(minX, px); minY = Math.min(minY, py);
+    maxX = Math.max(maxX, px); maxY = Math.max(maxY, py);
+  };
+  Object.values(positions).forEach((b) => { extend(b.x, b.y); extend(b.x + b.width, b.y + b.height); });
+
+  // --- Kabel-Geometrie vorab berechnen (auch die Bezier-Kontrollpunkte
+  // gehen in die Bounding-Box ein - eine kubische Bezierkurve bleibt
+  // IMMER innerhalb der konvexen Hülle ihrer 4 Kontrollpunkte, damit ist
+  // "nichts wird abgeschnitten" hier mathematisch garantiert). ---
+  const wireData = [];
+  data.connections.forEach((conn) => {
+    const fromBox = positions[conn.from_component_id];
+    const toBox = positions[conn.to_component_id];
+    const fromPL = pinLayout[conn.from_component_id] && pinLayout[conn.from_component_id][conn.from_pin_id];
+    const toPL = pinLayout[conn.to_component_id] && pinLayout[conn.to_component_id][conn.to_pin_id];
+    if (!fromBox || !toBox || !fromPL || !toPL) return;
+    const p1 = pinPoint(fromBox, fromPL.side, fromPL.index);
+    const p2 = pinPoint(toBox, toPL.side, toPL.index);
+    const dx = Math.max(50, Math.abs(p2.x - p1.x) * 0.5);
+    // Kontrollpunkte zeigen IMMER von der Box weg (in Pin-Richtung), nie
+    // rückwärts hinein - das verhindert die alten "Ausbeul"-Schleifen.
+    const c1x = p1.x + (fromPL.side === "right" ? dx : -dx);
+    const c2x = p2.x + (toPL.side === "right" ? dx : -dx);
+    extend(c1x, p1.y); extend(c2x, p2.y);
+    wireData.push({ conn, p1, p2, c1x, c2x });
+  });
+
+  const pad = 30;
+  minX -= pad; minY -= pad; maxX += pad; maxY += pad;
+  schematicBaseW = Math.max(50, maxX - minX);
+  schematicBaseH = Math.max(50, maxY - minY);
+  svg.setAttribute("viewBox", `${minX} ${minY} ${schematicBaseW} ${schematicBaseH}`);
+  svg.style.display = "block";
+  applySchematicZoom();
+
+  const wireEls = {};
+  wireData.forEach(({ conn, p1, p2, c1x, c2x }) => {
+    const path = document.createElementNS(SVGNS, "path");
+    path.setAttribute("d", `M ${p1.x},${p1.y} C ${c1x},${p1.y} ${c2x},${p2.y} ${p2.x},${p2.y}`);
+    path.setAttribute("class", "wire");
+    path.setAttribute("stroke", wireColor(conn));
+    path.addEventListener("click", () => showInfo(connectionInfoHtml(conn, stepNumberForConnection(conn.id))));
+    path.addEventListener("mouseenter", () => {
+      setHoverHighlight(new Set([conn.id]));
+      path.parentNode.appendChild(path); // nach vorne holen, damit es nicht von anderen Kabeln verdeckt wird
+    });
+    path.addEventListener("mouseleave", () => setHoverHighlight(new Set()));
+    const title = document.createElementNS(SVGNS, "title");
+    title.textContent = conn.description;
+    path.appendChild(title);
+    svg.appendChild(path);
+    wireEls[conn.id] = path;
+  });
+
+  const boxEls = {};
+  data.components.forEach((comp) => {
+    const box = positions[comp.id];
+    const g = document.createElementNS(SVGNS, "g");
+
+    const rect = document.createElementNS(SVGNS, "rect");
+    rect.setAttribute("x", box.x);
+    rect.setAttribute("y", box.y);
+    rect.setAttribute("width", box.width);
+    rect.setAttribute("height", box.height);
+    rect.setAttribute("rx", 8);
+    rect.setAttribute("class", "box-rect");
+    rect.addEventListener("click", () => showInfo(componentInfoHtml(comp)));
+    rect.addEventListener("mouseenter", () => setHoverHighlight(new Set(wireConnectionsForComponent(comp.id).map((c) => c.id))));
+    rect.addEventListener("mouseleave", () => setHoverHighlight(new Set()));
+    g.appendChild(rect);
+    boxEls[comp.id] = rect;
+
+    const title = document.createElementNS(SVGNS, "text");
+    title.setAttribute("x", box.x + box.width / 2);
+    title.setAttribute("y", box.y + 19);
+    title.setAttribute("text-anchor", "middle");
+    title.setAttribute("class", "box-title");
+    title.textContent = comp.name;
+    g.appendChild(title);
+
+    const cat = document.createElementNS(SVGNS, "text");
+    cat.setAttribute("x", box.x + box.width / 2);
+    cat.setAttribute("y", box.y + 33);
+    cat.setAttribute("text-anchor", "middle");
+    cat.setAttribute("class", "box-cat");
+    cat.textContent = comp.category;
+    g.appendChild(cat);
+
+    comp.pins.forEach((pin) => {
+      const pl = pinLayout[comp.id][pin.id];
+      const pt = pinPoint(box, pl.side, pl.index);
+
+      const label = document.createElementNS(SVGNS, "text");
+      label.setAttribute("x", pl.side === "left" ? box.x + 11 : box.x + box.width - 11);
+      label.setAttribute("y", pt.y + 4);
+      label.setAttribute("text-anchor", pl.side === "left" ? "start" : "end");
+      label.setAttribute("class", "pin-label");
+      label.textContent = pin.label;
+      g.appendChild(label);
+
+      const dot = document.createElementNS(SVGNS, "circle");
+      dot.setAttribute("cx", pt.x);
+      dot.setAttribute("cy", pt.y);
+      dot.setAttribute("r", 5);
+      dot.setAttribute("fill", pinColor(pin));
+      dot.setAttribute("class", "pin-dot");
+      dot.addEventListener("click", (e) => {
+        e.stopPropagation();
+        showInfo(`<strong>${escapeHtml(comp.name)} / ${escapeHtml(pin.label)}</strong><p style="margin:6px 0">${escapeHtml(pin.description)}</p>`);
+      });
+      dot.addEventListener("mouseenter", () => setHoverHighlight(new Set(wireConnectionsForPin(comp.id, pin.id).map((c) => c.id))));
+      dot.addEventListener("mouseleave", () => setHoverHighlight(new Set()));
+      const dotTitle = document.createElementNS(SVGNS, "title");
+      dotTitle.textContent = `${pin.label}: ${pin.description}`;
+      dot.appendChild(dotTitle);
+      g.appendChild(dot);
+    });
+
+    svg.appendChild(g);
+  });
+
+  window._wireEls = wireEls;
+  window._boxEls = boxEls;
+
+  el("schematicPane").style.display = "block";
+
+  renderSteps(data);
+  renderPowerAndSafety(data);
+  renderLegend(data);
+  renderRawCompare(data);
+  applyStepFilter();
+}
+
+el("btnZoomInSchematic").addEventListener("click", () => { schematicZoom = Math.min(3, schematicZoom + 0.15); applySchematicZoom(); });
+el("btnZoomOutSchematic").addEventListener("click", () => { schematicZoom = Math.max(0.25, schematicZoom - 0.15); applySchematicZoom(); });
+el("btnZoomResetSchematic").addEventListener("click", () => { schematicZoom = 1; applySchematicZoom(); });
+
+// ---------------------------------------------------------------------
+// Input (hardware_components, was ans Modell ging) vs. Raw Output (was das
+// Modell daraus erzeugt hat) - Meta-Felder wie project_id werden aus dem
+// Output-JSON rausgefiltert, damit man wirklich nur den vom KI-Agenten
+// erzeugten Inhalt sieht, nicht unsere eigene Antwort-Hülle drumherum.
+// ---------------------------------------------------------------------
+const RAW_OUTPUT_META_KEYS = ["project_id", "used_dummy_hardware_input", "hardware_components_input"];
+
+function renderRawCompare(data) {
+  el("rawInputText").value = JSON.stringify(data.hardware_components_input ?? [], null, 2);
+
+  const rawOutput = {};
+  Object.keys(data).forEach((key) => {
+    if (!RAW_OUTPUT_META_KEYS.includes(key)) rawOutput[key] = data[key];
+  });
+  el("rawOutputText").value = JSON.stringify(rawOutput, null, 2);
+}
+
+function stepNumberForConnection(connId) {
+  if (!currentData) return null;
+  const step = currentData.assembly_steps.find((s) => s.connection_ids.includes(connId));
+  return step ? step.step_number : null;
+}
+
+function renderSteps(data) {
+  const list = el("stepList");
+  list.innerHTML = "";
+  data.assembly_steps.forEach((step, idx) => {
+    const li = document.createElement("li");
+    li.textContent = `${step.step_number}. ${step.instruction}`;
+    li.addEventListener("click", () => {
+      activeStepIndex = idx;
+      applyStepFilter();
+    });
+    list.appendChild(li);
+  });
+  el("stepControls").style.display = data.assembly_steps.length ? "flex" : "none";
+  updateStepCounter();
+}
+
+function updateStepCounter() {
+  const total = currentData?.assembly_steps.length || 0;
+  el("stepCounter").textContent = activeStepIndex === -1 ? `all (${total})` : `${activeStepIndex + 1} / ${total}`;
+  [...el("stepList").children].forEach((li, i) => li.classList.toggle("active", i === activeStepIndex));
+}
+
+function applyStepFilter() {
+  if (!currentData) return;
+  updateStepCounter();
+  const activeConnIds = activeStepIndex === -1
+    ? null
+    : new Set(currentData.assembly_steps[activeStepIndex].connection_ids);
+
+  const applyToWires = (wireEls) => {
+    if (!wireEls) return;
+    currentData.connections.forEach((conn) => {
+      const wireEl = wireEls[conn.id];
+      if (!wireEl) return;
+      const isActive = activeConnIds === null || activeConnIds.has(conn.id);
+      wireEl.classList.toggle("dim", !isActive);
+      wireEl.classList.toggle("hl", activeConnIds !== null && isActive);
+    });
+  };
+  applyToWires(window._wireEls);
+
+  const highlightedComponentIds = new Set();
+  if (activeConnIds) {
+    currentData.connections.forEach((conn) => {
+      if (activeConnIds.has(conn.id)) {
+        highlightedComponentIds.add(conn.from_component_id);
+        highlightedComponentIds.add(conn.to_component_id);
+      }
+    });
+  }
+  const applyToBoxes = (boxEls) => {
+    if (!boxEls) return;
+    currentData.components.forEach((comp) => {
+      const boxEl = boxEls[comp.id];
+      if (!boxEl) return;
+      boxEl.classList.toggle("hl", highlightedComponentIds.has(comp.id));
+      boxEl.classList.toggle("dim", activeConnIds !== null && !highlightedComponentIds.has(comp.id));
+    });
+  };
+  applyToBoxes(window._boxEls);
+}
+
+function renderLegend(data) {
+  const wrap = el("legend");
+  const ul = wrap.querySelector("ul");
+  ul.innerHTML = "";
+  const seen = new Map(); // color -> Set(signal_type)
+  data.connections.forEach((c) => {
+    const color = wireColor(c);
+    if (!seen.has(color)) seen.set(color, new Set());
+    seen.get(color).add(c.signal_type);
+  });
+  seen.forEach((types, color) => {
+    const li = document.createElement("li");
+    li.innerHTML = `<span class="swatch" style="background:${color}"></span>${escapeHtml([...types].join(", "))}`;
+    ul.appendChild(li);
+  });
+  wrap.style.display = seen.size ? "block" : "none";
+}
+
+function renderPowerAndSafety(data) {
+  const powerUl = el("powerReqs").querySelector("ul");
+  powerUl.innerHTML = "";
+  (data.power_requirements || []).forEach((p) => {
+    const li = document.createElement("li");
+    li.textContent = `${p.component_id}: ${p.voltage} — ${p.note}`;
+    powerUl.appendChild(li);
+  });
+  el("powerReqs").style.display = (data.power_requirements || []).length ? "block" : "none";
+
+  const safetyUl = el("safetyNotes").querySelector("ul");
+  safetyUl.innerHTML = "";
+  (data.safety_notes || []).forEach((n) => {
+    const li = document.createElement("li");
+    li.textContent = n;
+    safetyUl.appendChild(li);
+  });
+  el("safetyNotes").style.display = (data.safety_notes || []).length ? "block" : "none";
+}
+
+// ---------------------------------------------------------------------
+// Wiring up controls
+// ---------------------------------------------------------------------
+el("btnPrevStep").addEventListener("click", () => {
+  if (!currentData) return;
+  activeStepIndex = activeStepIndex <= 0 ? currentData.assembly_steps.length - 1 : activeStepIndex - 1;
+  applyStepFilter();
+});
+el("btnNextStep").addEventListener("click", () => {
+  if (!currentData) return;
+  activeStepIndex = activeStepIndex >= currentData.assembly_steps.length - 1 ? 0 : activeStepIndex + 1;
+  applyStepFilter();
+});
+el("btnResetSteps").addEventListener("click", () => {
+  activeStepIndex = -1;
+  applyStepFilter();
+});
+
+el("btnCreateProject").addEventListener("click", async () => {
+  setStatus("creating project...");
+  try {
+    const res = await fetch("/projects", { method: "POST" });
+    const data = await res.json();
+    el("projectIdInput").value = data.project_id;
+    setStatus("project created: " + data.project_id);
+  } catch (err) {
+    setStatus("error: " + err.message);
+  }
+});
+
+// ---------------------------------------------------------------------
+// Gemeinsame Funktion für "2. Generate" (message=null, reine Neu-
+// Generierung) UND "4. Revise" (message gesetzt - ein Änderungswunsch zu
+// einem bereits bestehenden Schaltplan, der bei Bedarf automatisch bis zur
+// Bauteil-Auswahl zurückwirkt, siehe hardware_updated in der Antwort -
+// server-seitige Logik dazu in endpoints/circuit_diagram/refinement.py).
+// ---------------------------------------------------------------------
+async function generateCircuitDiagram(message) {
+  const projectId = el("projectIdInput").value.trim();
+  if (!projectId) {
+    setStatus("enter or create a project_id first");
+    return;
+  }
+  setStatus(message
+    ? "applying change request, this can take a while (may also re-run hardware selection)..."
+    : "calling model, this can take a few seconds...");
+  el("btnGenerate").disabled = true;
+  el("btnRevise").disabled = true;
+  try {
+    const body = { project_id: projectId };
+    if (message) body.message = message;
+    const res = await fetch("/circuit-diagram", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      setStatus("error: " + (data.detail || res.status));
+      return;
+    }
+    render(data);
+    let statusMsg = data.used_dummy_hardware_input
+      ? "rendered (using dummy hardware input - no real hardware artifact for this project yet)"
+      : "rendered (using stored hardware artifact)";
+    if (data.hardware_updated) statusMsg += " — hardware selection was also updated by this change";
+    setStatus(statusMsg);
+  } catch (err) {
+    setStatus("error: " + err.message);
+  } finally {
+    el("btnGenerate").disabled = false;
+    el("btnRevise").disabled = false;
+  }
+}
+
+el("btnGenerate").addEventListener("click", () => generateCircuitDiagram(null));
+
+el("btnRevise").addEventListener("click", () => {
+  const message = el("revisionMessageInput").value.trim();
+  if (!message) {
+    setStatus("enter a change request in the text field first");
+    return;
+  }
+  generateCircuitDiagram(message);
+});
+
+document.querySelectorAll(".btnCopy").forEach((btn) => {
+  btn.addEventListener("click", async () => {
+    const textarea = el(btn.dataset.target);
+    try {
+      await navigator.clipboard.writeText(textarea.value);
+      const original = btn.textContent;
+      btn.textContent = "copied!";
+      setTimeout(() => { btn.textContent = original; }, 1200);
+    } catch (err) {
+      textarea.select();
+      setStatus("clipboard blocked - text selected, copy manually (Ctrl+C)");
+    }
+  });
+});
+
+el("btnExample").addEventListener("click", () => {
+  render(EXAMPLE_DATA);
+  setStatus("showing hardcoded offline example (no API call)");
+});
+
+// ---------------------------------------------------------------------
+// Hardcoded example so the visualizer can be checked without a running
+// server or API costs. Shape matches CircuitDiagramResponse (schema.py).
+// ---------------------------------------------------------------------
+const EXAMPLE_DATA = {
+  title: "Durstiger Blumentopf – Schaltplan",
+  summary: "Ein Arduino liest einen Feuchtigkeitssensor und einen Taster aus und steuert eine RGB-LED, um den Zustand der Pflanze anzuzeigen.",
+  project_id: "example",
+  used_dummy_hardware_input: true,
+  // Entspricht 1:1 DUMMY_HARDWARE_SELECTION aus dummy_data.py - so
+  // funktioniert der Input/Output-Vergleich auch im Offline-Beispiel.
+  hardware_components_input: [
+    { id: "component_arduino_uno", name: "Arduino Uno R3", category: "Microcontroller", role: "Zentrale Steuereinheit des Systems", linked_concept_ids: [], specs: { operating_voltage: "5V", digital_pins: "14 (davon 6 PWM)", analog_pins: 6 } },
+    { id: "component_soil_moisture_sensor", name: "Capacitive Soil Moisture Sensor v1.2", category: "Sensor", role: "Misst, ob die Erde trocken oder feucht ist", linked_concept_ids: ["sensor_erde_trocken"], specs: { operating_voltage: "3.3V-5V", output_type: "Analog" } },
+    { id: "component_rgb_led", name: "Diffused RGB-LED (gemeinsame Kathode)", category: "Actuator", role: "Zeigt den aktuellen Zustand des Systems farblich an", linked_concept_ids: ["actuator_led_rot"], specs: { forward_voltage: "2.0-3.2V", control: "3x PWM" } },
+    { id: "component_push_button", name: "Momentary Push Button 12mm", category: "Sensor", role: "Erkennt Berührung/Interaktion durch die Nutzerin", linked_concept_ids: ["sensor_beruehrung"], specs: { operating_voltage: "5V", output_type: "Digital" } },
+    { id: "component_resistor_220", name: "Widerstand 220 Ohm", category: "Passive Component", role: "Strombegrenzung für die RGB-LED-Kanäle", linked_concept_ids: [], specs: { resistance: "220 Ohm" } },
+    { id: "component_resistor_10k", name: "Widerstand 10 kOhm", category: "Passive Component", role: "Pull-Down-Widerstand für den Taster", linked_concept_ids: [], specs: { resistance: "10 kOhm" } },
+  ],
+  components: [
+    {
+      id: "component_arduino_uno", name: "Arduino Uno R3", category: "Microcontroller",
+      description: "Steuert das gesamte System: liest Sensoren aus und schaltet die LED.",
+      pins: [
+        { id: "pin_arduino_5v", label: "5V", signal_type: "power", description: "Liefert 5V Betriebsspannung an die anderen Bauteile." },
+        { id: "pin_arduino_gnd", label: "GND", signal_type: "ground", description: "Gemeinsame Masse für alle Bauteile." },
+        { id: "pin_arduino_a0", label: "A0", signal_type: "analog", description: "Liest den analogen Feuchtigkeitswert des Bodensensors." },
+        { id: "pin_arduino_d2", label: "D2", signal_type: "digital", description: "Liest, ob der Taster gedrückt ist." },
+        { id: "pin_arduino_d9", label: "D9 (PWM)", signal_type: "pwm", description: "Steuert die Helligkeit des roten LED-Kanals." },
+      ],
+    },
+    {
+      id: "component_soil_moisture_sensor", name: "Capacitive Soil Moisture Sensor", category: "Sensor",
+      description: "Misst, ob die Erde trocken oder feucht ist.",
+      pins: [
+        { id: "pin_soil_vcc", label: "VCC", signal_type: "power", description: "Betriebsspannung des Sensors." },
+        { id: "pin_soil_gnd", label: "GND", signal_type: "ground", description: "Masseanschluss des Sensors." },
+        { id: "pin_soil_out", label: "AOUT", signal_type: "analog", description: "Gibt den gemessenen Feuchtigkeitswert als Analogsignal aus." },
+      ],
+    },
+    {
+      id: "component_push_button", name: "Momentary Push Button", category: "Sensor",
+      description: "Erkennt, wenn die Nutzerin den Topf berührt/gießt.",
+      pins: [
+        { id: "pin_button_1", label: "Pin 1", signal_type: "digital", description: "Signalseite, zum Arduino." },
+        { id: "pin_button_2", label: "Pin 2", signal_type: "ground", description: "Masseseite des Tasters." },
+      ],
+    },
+    {
+      id: "component_rgb_led", name: "RGB-LED", category: "Actuator",
+      description: "Zeigt den Zustand der Pflanze farblich an (z.B. Rot = durstig).",
+      pins: [
+        { id: "pin_led_r", label: "R", signal_type: "pwm", description: "Roter Kanal, steuert die Helligkeit von Rot." },
+        { id: "pin_led_gnd", label: "GND", signal_type: "ground", description: "Gemeinsame Kathode der LED." },
+      ],
+    },
+    {
+      id: "component_resistor_220", name: "Widerstand 220 Ohm", category: "Passive Component",
+      description: "Begrenzt den Strom durch den roten LED-Kanal, damit die LED nicht durchbrennt.",
+      pins: [
+        { id: "pin_r220_1", label: "Pin 1", signal_type: "other", description: "Zum PWM-Pin des Arduino." },
+        { id: "pin_r220_2", label: "Pin 2", signal_type: "other", description: "Zum roten Kanal der LED." },
+      ],
+    },
+  ],
+  connections: [
+    { id: "conn_1", from_component_id: "component_arduino_uno", from_pin_id: "pin_arduino_5v", to_component_id: "component_soil_moisture_sensor", to_pin_id: "pin_soil_vcc", signal_type: "power", wire_color: "red", description: "Versorgt den Feuchtigkeitssensor mit 5V." },
+    { id: "conn_2", from_component_id: "component_arduino_uno", from_pin_id: "pin_arduino_gnd", to_component_id: "component_soil_moisture_sensor", to_pin_id: "pin_soil_gnd", signal_type: "ground", wire_color: "black", description: "Gemeinsame Masse für den Feuchtigkeitssensor." },
+    { id: "conn_3", from_component_id: "component_soil_moisture_sensor", from_pin_id: "pin_soil_out", to_component_id: "component_arduino_uno", to_pin_id: "pin_arduino_a0", signal_type: "analog", wire_color: "yellow", description: "Überträgt den gemessenen Feuchtigkeitswert an den Arduino." },
+    { id: "conn_4", from_component_id: "component_push_button", from_pin_id: "pin_button_2", to_component_id: "component_arduino_uno", to_pin_id: "pin_arduino_gnd", signal_type: "ground", wire_color: "black", description: "Verbindet den Taster mit der Masse." },
+    { id: "conn_5", from_component_id: "component_push_button", from_pin_id: "pin_button_1", to_component_id: "component_arduino_uno", to_pin_id: "pin_arduino_d2", signal_type: "digital", wire_color: "green", description: "Meldet dem Arduino, wenn der Taster gedrückt wird." },
+    { id: "conn_6", from_component_id: "component_arduino_uno", from_pin_id: "pin_arduino_d9", to_component_id: "component_resistor_220", to_pin_id: "pin_r220_1", signal_type: "pwm", wire_color: "orange", description: "Steuert die Helligkeit der roten LED über den Vorwiderstand." },
+    { id: "conn_7", from_component_id: "component_resistor_220", from_pin_id: "pin_r220_2", to_component_id: "component_rgb_led", to_pin_id: "pin_led_r", signal_type: "pwm", wire_color: "orange", description: "Vorwiderstand schützt den roten LED-Kanal vor Überstrom." },
+    { id: "conn_8", from_component_id: "component_rgb_led", from_pin_id: "pin_led_gnd", to_component_id: "component_arduino_uno", to_pin_id: "pin_arduino_gnd", signal_type: "ground", wire_color: "black", description: "Gemeinsame Masse für die LED." },
+  ],
+  assembly_steps: [
+    { step_number: 1, instruction: "Verbinde GND des Arduino mit GND von Sensor, Taster und LED (gemeinsame Masse zuerst).", connection_ids: ["conn_2", "conn_4", "conn_8"] },
+    { step_number: 2, instruction: "Verbinde 5V des Arduino mit VCC des Feuchtigkeitssensors.", connection_ids: ["conn_1"] },
+    { step_number: 3, instruction: "Verbinde den Signal-Ausgang des Feuchtigkeitssensors mit A0 des Arduino.", connection_ids: ["conn_3"] },
+    { step_number: 4, instruction: "Verbinde den Taster mit D2 des Arduino.", connection_ids: ["conn_5"] },
+    { step_number: 5, instruction: "Verbinde D9 (PWM) des Arduino über den 220-Ohm-Widerstand mit dem roten Kanal der LED.", connection_ids: ["conn_6", "conn_7"] },
+  ],
+  power_requirements: [
+    { component_id: "component_arduino_uno", voltage: "5V (USB)", note: "Wird meist direkt per USB-Kabel vom Computer versorgt." },
+  ],
+  safety_notes: [
+    "Vergiss den Vorwiderstand vor der LED nicht - ohne ihn kann die LED durchbrennen.",
+    "Achte auf die Polarität der LED (längeres Beinchen = Plus).",
+  ],
+};
+</script>
+</body>
+</html>

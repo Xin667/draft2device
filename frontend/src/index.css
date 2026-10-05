@@ -1,0 +1,265 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  --color-paper: #faf8f4;
+  --color-grid: #ece7dd;
+  --color-ink: #1e2430;
+  --color-ink-soft: #5a6172;
+  --color-copper: #c46a2b;
+  --color-copper-soft: #f3e3d4;
+  --color-signal-green: #2e7d4f;
+  --color-signal-red: #c0392b;
+  --color-card: #ffffff;
+  --color-line: #d9d3c7;
+
+  --font-sans: 'IBM Plex Sans', sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+  --font-display: 'Space Grotesk', sans-serif;
+}
+
+:root {
+  color-scheme: light;
+  --background: var(--color-paper);
+  --foreground: var(--color-ink);
+  --card: var(--color-card);
+  --card-foreground: var(--color-ink);
+  --popover: var(--color-card);
+  --popover-foreground: var(--color-ink);
+  --primary: var(--color-ink);
+  --primary-foreground: var(--color-paper);
+  --secondary: var(--color-copper-soft);
+  --secondary-foreground: var(--color-ink);
+  --muted: var(--color-grid);
+  --muted-foreground: var(--color-ink-soft);
+  --accent: var(--color-copper);
+  --accent-foreground: var(--color-paper);
+  --destructive: var(--color-signal-red);
+  --border: var(--color-line);
+  --input: var(--color-line);
+  --ring: var(--color-copper);
+  --radius: 0.625rem;
+}
+
+.dark {
+  --background: var(--color-ink);
+  --foreground: var(--color-paper);
+  --card: #262c3a;
+  --card-foreground: var(--color-paper);
+  --popover: #262c3a;
+  --popover-foreground: var(--color-paper);
+  --primary: var(--color-copper);
+  --primary-foreground: var(--color-ink);
+  --secondary: #333a4a;
+  --secondary-foreground: var(--color-paper);
+  --muted: #333a4a;
+  --muted-foreground: #9aa1b0;
+  --accent: var(--color-copper);
+  --accent-foreground: var(--color-ink);
+  --destructive: var(--color-signal-red);
+  --border: #3a4152;
+  --input: #3a4152;
+  --ring: var(--color-copper);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground font-sans;
+  }
+}
+
+/* ---------- IR Rail (rechte Leiste — Single Point of Truth) ---------- */
+.ir-rail {
+  padding: 28px 20px;
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(2px);
+}
+.ir-rail h3 {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+  margin-bottom: 4px;
+}
+.ir-rail .ver {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-copper);
+  margin-bottom: 18px;
+}
+.sm {
+  position: relative;
+  padding-left: 18px;
+}
+.sm::before {
+  content: "";
+  position: absolute;
+  left: 6px;
+  top: 8px;
+  bottom: 8px;
+  width: 1.5px;
+  background: var(--color-line);
+}
+.state {
+  position: relative;
+  background: var(--color-card);
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 22px;
+  font-size: 12px;
+  transition: 0.3s;
+}
+.state::before {
+  content: "";
+  position: absolute;
+  left: -15.5px;
+  top: 14px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-line);
+  border: 1.5px solid var(--color-paper);
+}
+.state.hl {
+  border-color: var(--color-copper);
+  box-shadow: 0 0 0 1px var(--color-copper);
+}
+.state.hl::before {
+  background: var(--color-copper);
+}
+.state h5 {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 3px;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.sid {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--color-ink-soft);
+  border: 1px solid var(--color-line);
+  border-radius: 4px;
+  padding: 0 4px;
+}
+.state .trig {
+  color: var(--color-ink-soft);
+  font-size: 11.5px;
+}
+.state .act {
+  margin-top: 5px;
+  font-size: 11.5px;
+}
+.state .act span {
+  display: block;
+  padding: 1px 0;
+}
+.led {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 5px;
+  vertical-align: baseline;
+}
+.led.red {
+  background: var(--color-signal-red);
+}
+.led.green {
+  background: var(--color-signal-green);
+}
+.led.off {
+  background: var(--color-line);
+}
+.ir-patch {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--color-signal-green);
+  margin-top: 14px;
+  opacity: 0;
+  transition: 0.4s;
+}
+.ir-patch.show {
+  opacity: 1;
+}
+.ir-empty {
+  font-size: 12px;
+  color: var(--color-ink-soft);
+  font-style: italic;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+
+/* ---------------------------------------------------------------------------
+   Druck / PDF-Export (Schritt 6 "Als PDF speichern")
+   --------------------------------------------------------------------------- */
+
+/* Verhindert, dass Karten/Zustandsblöcke über einen Seitenumbruch zerrissen werden. */
+.print-break-avoid {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+@media print {
+  @page {
+    margin: 14mm;
+  }
+
+  /* Signalfarben und Pin-Punkte im Schaltplan sollen im PDF erhalten bleiben. */
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Lange Code-Zeilen im PDF umbrechen, statt sie rechts abzuschneiden. */
+  pre {
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow: visible;
+  }
+
+  /* Keine Scroll-Begrenzungen im Ausdruck — es soll alles sichtbar sein. */
+  .print-scroll-reset {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "draft2device",
+  "private": true,
+  "description": "Draft2Device — Monorepo: Frontend (React/Vite) + Backend (FastAPI/SQLite)",
+  "scripts": {
+    "dev": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend run build",
+    "lint": "npm --prefix frontend run lint",
+    "preview": "npm --prefix frontend run preview",
+    "backend": "cd backend && python3 -m uvicorn main:app --reload",
+    "backend:install": "cd backend && python3 -m pip install -r requirements.txt"
+  }
+}

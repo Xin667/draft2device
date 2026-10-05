@@ -1,0 +1,49 @@
+# --- Abhängigkeiten & Build-Output ---
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+
+# --- Secrets: NIE einchecken ---
+.env
+.env.local
+key.py
+
+# --- Datenbanken ---
+# Die Backup-Dateien der SQLite-Datenbank bleiben lokal (die aktive
+# draft2device.db wird bewusst mit eingecheckt, siehe README).
+*.db.bak*
+*.sqlite-journal
+
+# --- Betriebssystem & Editor ---
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# --- Logs & Caches ---
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.eslintcache

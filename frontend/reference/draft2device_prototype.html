@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Draft2Device — Prototyp</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#FAF8F4;
+  --grid:#ECE7DD;
+  --ink:#1E2430;
+  --ink-soft:#5A6172;
+  --copper:#C46A2B;
+  --copper-soft:#F3E3D4;
+  --signal-green:#2E7D4F;
+  --signal-red:#C0392B;
+  --card:#FFFFFF;
+  --line:#D9D3C7;
+  --mono:'IBM Plex Mono',monospace;
+  --sans:'IBM Plex Sans',sans-serif;
+  --disp:'Space Grotesk',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:var(--sans);color:var(--ink);background:var(--paper);
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:24px 24px;
+  min-height:100vh;font-size:15px;line-height:1.5;
+}
+.app{display:grid;grid-template-columns:200px 1fr 300px;min-height:100vh;max-width:1400px;margin:0 auto}
+
+/* ---------- left stepper ---------- */
+.stepper{border-right:1px solid var(--line);padding:28px 0;background:rgba(250,248,244,.85);backdrop-filter:blur(2px)}
+.brand{padding:0 20px 26px;border-bottom:1px solid var(--line);margin-bottom:18px}
+.brand h1{font-family:var(--disp);font-size:19px;font-weight:700;letter-spacing:-.02em}
+.brand h1 span{color:var(--copper)}
+.brand p{font-family:var(--mono);font-size:10.5px;color:var(--ink-soft);margin-top:3px}
+.step{display:flex;align-items:center;gap:10px;padding:11px 20px;cursor:pointer;color:var(--ink-soft);border-left:3px solid transparent;font-size:13.5px}
+.step .dot{width:22px;height:22px;border:1.5px solid var(--line);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;flex-shrink:0;background:var(--card)}
+.step.active{color:var(--ink);font-weight:600;border-left-color:var(--copper);background:rgba(196,106,43,.06)}
+.step.active .dot{border-color:var(--copper);color:var(--copper)}
+.step.done .dot{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.step.locked{opacity:.45;cursor:not-allowed}
+
+/* ---------- main ---------- */
+.main{padding:32px 36px 80px;overflow:hidden}
+.panel{display:none;animation:fade .25s ease}
+.panel.visible{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--copper);margin-bottom:6px}
+h2{font-family:var(--disp);font-size:26px;font-weight:700;letter-spacing:-.02em;margin-bottom:6px}
+.lead{color:var(--ink-soft);max-width:560px;margin-bottom:24px}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:20px;margin-bottom:16px}
+.card h3{font-family:var(--disp);font-size:15px;margin-bottom:12px}
+label{font-size:13px;font-weight:600;display:block;margin-bottom:6px}
+textarea,input[type=text]{width:100%;border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-family:var(--sans);font-size:14px;background:var(--paper);resize:vertical}
+textarea:focus,input:focus{outline:2px solid var(--copper);outline-offset:-1px}
+
+.dropzone{border:1.5px dashed var(--line);border-radius:10px;padding:26px;text-align:center;color:var(--ink-soft);cursor:pointer;transition:.15s;background:var(--paper)}
+.dropzone:hover{border-color:var(--copper);color:var(--copper)}
+.dropzone.filled{border-style:solid;border-color:var(--signal-green);color:var(--ink)}
+.sketch-preview{font-family:var(--mono);font-size:12px;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px;margin-top:12px;text-align:left;white-space:pre;line-height:1.7;color:var(--ink-soft)}
+
+.btn{display:inline-flex;align-items:center;gap:8px;border:none;border-radius:8px;padding:11px 20px;font-family:var(--sans);font-size:14px;font-weight:600;cursor:pointer;transition:.15s}
+.btn-primary{background:var(--ink);color:var(--paper)}
+.btn-primary:hover{background:var(--copper)}
+.btn-ghost{background:transparent;border:1px solid var(--line);color:var(--ink)}
+.btn-ghost:hover{border-color:var(--copper);color:var(--copper)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn-row{display:flex;gap:10px;margin-top:20px;align-items:center}
+
+/* agent status */
+.agent-status{display:none;align-items:center;gap:12px;background:var(--copper-soft);border:1px solid var(--copper);border-radius:8px;padding:12px 16px;margin:16px 0;font-family:var(--mono);font-size:12.5px;color:var(--ink)}
+.agent-status.running{display:flex}
+.pulse{width:9px;height:9px;border-radius:50%;background:var(--copper);animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+
+/* analyse structure */
+.struct-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.struct-block{background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:14px}
+.struct-block h4{font-family:var(--mono);font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--copper);margin-bottom:8px}
+.struct-block ul{list-style:none;font-size:13px}
+.struct-block li{padding:3px 0;border-bottom:1px dashed var(--grid)}
+.struct-block li:last-child{border:none}
+.kv b{font-weight:600}
+.tag{font-family:var(--mono);font-size:10px;padding:2px 7px;border-radius:99px;border:1px solid currentColor;margin-left:6px}
+.tag.tech{color:#3B5BA5}
+.tag.gest{color:var(--copper)}
+
+/* lücken */
+.luecke{border-left:3px solid var(--copper);padding:16px 18px;background:var(--card);border-radius:0 10px 10px 0;border-top:1px solid var(--line);border-right:1px solid var(--line);border-bottom:1px solid var(--line);margin-bottom:14px}
+.luecke h4{font-size:14px;margin-bottom:4px;display:flex;align-items:center}
+.luecke p{font-size:13px;color:var(--ink-soft);margin-bottom:12px}
+.ki-info{font-size:12.5px;background:var(--copper-soft);border-radius:8px;padding:10px 12px;margin-top:10px;color:var(--ink)}
+.ki-info b{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--copper);display:block;margin-bottom:3px}
+input[type=range]{width:100%;accent-color:var(--copper)}
+.range-row{display:flex;align-items:center;gap:14px}
+.range-val{font-family:var(--mono);font-size:14px;min-width:70px;text-align:right;color:var(--copper);font-weight:500}
+.choice-row{display:flex;flex-wrap:wrap;gap:8px}
+.choice{border:1px solid var(--line);border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer;background:var(--paper);transition:.12s}
+.choice:hover{border-color:var(--copper)}
+.choice.selected{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.skip{font-size:12px;color:var(--ink-soft);text-decoration:underline;cursor:pointer;margin-top:10px;display:inline-block}
+.skip.skipped{color:var(--copper);text-decoration:none;font-style:italic}
+
+/* hardware */
+.hw-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
+.hw-card{border:1.5px solid var(--line);border-radius:10px;padding:14px;cursor:pointer;background:var(--card);transition:.12s;position:relative}
+.hw-card:hover{border-color:var(--copper)}
+.hw-card.selected{border-color:var(--ink);box-shadow:0 0 0 1px var(--ink)}
+.hw-card.selected::after{content:"✓";position:absolute;top:10px;right:12px;font-weight:700;color:var(--signal-green)}
+.hw-card h4{font-size:14px;margin-bottom:2px}
+.hw-card .price{font-family:var(--mono);font-size:12px;color:var(--copper);margin-bottom:8px}
+.hw-card .pros,.hw-card .cons{font-size:12px;padding-left:16px;color:var(--ink-soft)}
+.hw-card .pros li::marker{content:"+ ";color:var(--signal-green)}
+.hw-card .cons li::marker{content:"– ";color:var(--signal-red)}
+.sec-hw{font-family:var(--mono);font-size:12.5px}
+.sec-hw li{padding:5px 0;border-bottom:1px dashed var(--grid);list-style:none;display:flex;justify-content:space-between}
+
+/* circuit svg */
+.circuit-wrap{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px;overflow-x:auto}
+.cnode{cursor:pointer}
+.cnode rect{transition:.12s}
+.cnode:hover rect{stroke:var(--copper);stroke-width:2}
+.cnode-info{font-size:13px;background:var(--copper-soft);border-radius:8px;padding:10px 14px;margin-top:10px;min-height:42px;color:var(--ink)}
+
+/* code */
+.code-wrap{display:grid;grid-template-columns:1fr 250px;gap:14px}
+pre{background:#22272E;color:#ADBAC7;border-radius:10px;padding:18px;font-family:var(--mono);font-size:12.5px;line-height:1.65;overflow-x:auto}
+pre .kw{color:#F47067}pre .num{color:#6CB6FF}pre .str{color:#96D0FF}pre .com{color:#768390;font-style:italic}pre .fn{color:#DCBDFB}
+pre .live{background:rgba(196,106,43,.35);border-radius:3px;padding:0 3px}
+.param-panel{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px}
+.param-panel h4{font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--copper);margin-bottom:14px}
+.param{margin-bottom:16px}
+.param label{font-size:12.5px}
+
+/* simulator */
+.sim-wrap{display:grid;grid-template-columns:200px 1fr;gap:18px;align-items:center}
+.sim-stage{text-align:center}
+.sim-msg{font-size:12.5px;color:var(--ink-soft);min-height:36px;margin-top:4px}
+.sim-controls label{font-size:13px}
+.sim-state{font-family:var(--mono);font-size:12px;margin-top:12px;padding:8px 12px;background:var(--paper);border:1px solid var(--line);border-radius:8px}
+@keyframes simBlink{0%,100%{opacity:1}50%{opacity:.15}}
+.blinking{animation:simBlink .45s 5}
+@media(max-width:720px){.sim-wrap{grid-template-columns:1fr}}
+
+/* final */
+.final-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);padding:6px 4px;border-bottom:1px solid var(--line)}
+td{padding:7px 4px;border-bottom:1px dashed var(--grid)}
+td.num,th.num{text-align:right;font-family:var(--mono)}
+.total td{font-weight:600;border-top:2px solid var(--ink);border-bottom:none}
+
+/* ---------- right IR rail (signature) ---------- */
+.ir-rail{border-left:1px solid var(--line);padding:28px 20px;background:rgba(255,255,255,.6);backdrop-filter:blur(2px)}
+.ir-rail h3{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:4px}
+.ir-rail .ver{font-family:var(--mono);font-size:11px;color:var(--copper);margin-bottom:18px}
+.sm{position:relative;padding-left:18px}
+.sm::before{content:"";position:absolute;left:6px;top:8px;bottom:8px;width:1.5px;background:var(--line)}
+.state{position:relative;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-bottom:22px;font-size:12px;transition:.3s}
+.state::before{content:"";position:absolute;left:-15.5px;top:14px;width:8px;height:8px;border-radius:50%;background:var(--line);border:1.5px solid var(--paper)}
+.state.hl{border-color:var(--copper);box-shadow:0 0 0 1px var(--copper)}
+.state.hl::before{background:var(--copper)}
+.state h5{font-family:var(--sans);font-size:12px;font-weight:600;margin-bottom:3px;display:flex;justify-content:space-between;align-items:baseline}
+.sid{font-family:var(--mono);font-size:9px;color:var(--ink-soft);border:1px solid var(--line);border-radius:4px;padding:0 4px}
+.state .trig{color:var(--ink-soft);font-size:11.5px}
+.state .act{margin-top:5px;font-size:11.5px}
+.state .act span{display:block;padding:1px 0}
+.state .led{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:baseline}
+.led.red{background:var(--signal-red)}.led.green{background:var(--signal-green)}.led.off{background:var(--line)}
+.ir-patch{font-family:var(--mono);font-size:10.5px;color:var(--signal-green);margin-top:14px;opacity:0;transition:.4s}
+.ir-patch.show{opacity:1}
+.ir-empty{font-size:12px;color:var(--ink-soft);font-style:italic}
+
+@media(max-width:1080px){.app{grid-template-columns:170px 1fr}.ir-rail{display:none}}
+@media(max-width:720px){.app{grid-template-columns:1fr}.stepper{display:flex;overflow-x:auto;border-right:none;border-bottom:1px solid var(--line);padding:10px}.brand{display:none}.step{border-left:none;border-bottom:3px solid transparent;white-space:nowrap}.step.active{border-bottom-color:var(--copper)}.struct-grid,.code-wrap,.final-grid{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ============ STEPPER ============ -->
+  <nav class="stepper" aria-label="Schritte">
+    <div class="brand">
+      <h1>Draft<span>2</span>Device</h1>
+      <p>Skizze → Spezifikation → Code</p>
+    </div>
+    <div class="step active" data-step="1" onclick="goto(1)"><div class="dot">1</div>Input</div>
+    <div class="step locked" data-step="2" onclick="goto(2)"><div class="dot">2</div>Klärung</div>
+    <div class="step locked" data-step="3" onclick="goto(3)"><div class="dot">3</div>Hardware</div>
+    <div class="step locked" data-step="4" onclick="goto(4)"><div class="dot">4</div>Struktur</div>
+    <div class="step locked" data-step="5" onclick="goto(5)"><div class="dot">5</div>Quellcode</div>
+    <div class="step locked" data-step="6" onclick="goto(6)"><div class="dot">✓</div>Ergebnis</div>
+  </nav>
+
+  <!-- ============ MAIN ============ -->
+  <main class="main">
+
+    <!-- ========== TAB 1: INPUT ========== -->
+    <section class="panel visible" id="p1">
+      <div class="eyebrow">Schritt 1 · Input-Kontext</div>
+      <h2>Womit fangen wir an?</h2>
+      <p class="lead">Lade eine Storyboard-Skizze hoch und ergänze Notizen aus dem Brainstorming. Alles ist optional kombinierbar — Widersprüche zwischen Skizze und Notizen werden später als offene Fragen aufgeführt.</p>
+
+      <div class="card">
+        <h3>Skizze</h3>
+        <div class="dropzone" id="dz" onclick="loadSketch()" role="button" tabindex="0" onkeydown="if(event.key==='Enter')loadSketch()">
+          <span id="dz-label">Foto der Skizze hierher ziehen oder klicken (Demo: Beispiel laden)</span>
+        </div>
+        <div class="sketch-preview" id="sketch" style="display:none">┌─────────────────────────────────────┐
+│   ❀  Blumentopf (gezeichnet)        │
+│  ╱│╲                                │
+│ ▓▓▓▓▓  ──► „trockene Erde           │
+│ ▓Topf▓       => LED blinkt rot,     │
+│ ▓▓▓▓▓▓       Pflanze jammert"       │
+│                                     │
+│  Notiz am Rand: „beim Gießen        │
+│  fröhlicher Sound + grün blinken"   │
+└─────────────────────────────────────┘</div>
+      </div>
+
+      <div class="card">
+        <h3>Text-Notizen</h3>
+        <textarea id="notes" rows="3" placeholder="Ungefilterte Brainstorming-Notizen …">Pflanze soll Besucher anjammern wenn durstig. Nicht nervig, eher niedlich. Vielleicht alle 30 Sekunden? Beim Gießen Belohnung.</textarea>
+      </div>
+
+      <div class="card">
+        <h3>Audionotiz</h3>
+        <button class="btn btn-ghost" id="audioBtn" onclick="mockAudio()">● Aufnahme starten</button>
+        <span id="audioState" style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);margin-left:10px"></span>
+      </div>
+
+      <div class="agent-status" id="status1"><div class="pulse"></div><span id="statusText1"></span></div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="analyzeBtn" onclick="runAnalyse()" disabled>Konzept analysieren →</button>
+        <span style="font-size:12px;color:var(--ink-soft)">POST /api/analyze-concept</span>
+      </div>
+    </section>
+
+    <!-- ========== TAB 2: KLÄRUNG ========== -->
+    <section class="panel" id="p2">
+      <div class="eyebrow">Schritt 2 · Analyse &amp; Klärung</div>
+      <h2>Das hat der Agent verstanden</h2>
+      <p class="lead">Prüfe die Struktur und beantworte die offenen Fragen — oder lass sie bewusst offen. Jede Antwort patcht den Zustandsautomaten rechts, nichts wird neu generiert.</p>
+
+      <div class="card">
+        <h3>Analyse-Struktur</h3>
+        <div class="struct-grid">
+          <div class="struct-block"><h4>Projekt-Metadaten</h4><ul>
+            <li class="kv"><b>Arbeitstitel:</b> Die jammernde Pflanze</li>
+            <li class="kv"><b>Intention:</b> Emotionale Bindung zwischen Besucher und Objekt</li></ul></div>
+          <div class="struct-block"><h4>Akteure &amp; Entitäten</h4><ul>
+            <li>Ausstellungsbesucher (Mensch)</li>
+            <li>Blumentopf (Objekt)</li></ul></div>
+          <div class="struct-block"><h4>Sensorik</h4><ul>
+            <li>„Erde trocken" → Feuchtigkeitssensor</li>
+            <li>„wird gegossen" → Feuchtigkeitsanstieg</li></ul></div>
+          <div class="struct-block"><h4>Aktorik</h4><ul>
+            <li>„jammern" → Audio-Ausgabe</li>
+            <li>„rot / grün" → RGB-LED</li></ul></div>
+        </div>
+      </div>
+
+      <h3 style="font-family:var(--disp);font-size:16px;margin:22px 0 12px">Offene Lücken <span style="font-family:var(--mono);font-size:11px;color:var(--ink-soft)">(3)</span></h3>
+
+      <div class="luecke">
+        <h4>Ab wann gilt die Pflanze als „durstig"?</h4>
+        <p>Der Schwellenwert des Feuchtigkeitssensors bestimmt den Übergang in Zustand B.</p>
+        <div class="range-row">
+          <input type="range" min="10" max="60" value="30" id="l1" oninput="updateL1(this.value)" aria-label="Feuchtigkeits-Schwellenwert">
+          <span class="range-val" id="l1v">30 %</span>
+        </div>
+        <div class="ki-info"><b>KI-Info</b>Die meisten Zimmerpflanzen gedeihen bei 40–60 % Bodenfeuchte. Unter 30 % beginnt bei vielen Arten Trockenstress — ein guter Standardwert für „durstig".</div>
+      </div>
+
+      <div class="luecke">
+        <h4>Wie lange soll das grüne Blinken beim Gießen anhalten?</h4>
+        <p>Bestimmt, wie deutlich die „Belohnung" für den Besucher ausfällt.</p>
+        <div class="range-row">
+          <input type="range" min="1" max="10" value="5" id="l2" oninput="updateL2(this.value)" aria-label="Blink-Anzahl">
+          <span class="range-val" id="l2v">5×</span>
+        </div>
+        <span class="skip" id="skip2" onclick="skipL2()">Bewusst offen lassen — entscheide ich beim Testen</span>
+      </div>
+
+      <div class="luecke">
+        <h4>Was passiert bei Überflutung?</h4>
+        <p>Soll ein eigener Zustand „Überflutung" existieren?</p>
+        <div class="choice-row" id="l3">
+          <div class="choice" onclick="pickL3(this,'kein')">Kein Extra-Zustand</div>
+          <div class="choice selected" onclick="pickL3(this,'warn')">Zustand D: Warnung (LED blau pulsiert)</div>
+          <div class="choice" onclick="pickL3(this,'stop')">System pausiert komplett</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Offener Prompt</h3>
+        <input type="text" placeholder="z. B. „Das Jammern soll mit der Zeit dramatischer werden“ …">
+      </div>
+
+      <div class="agent-status" id="status2"><div class="pulse"></div><span id="statusText2"></span></div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="finalize()">Spezifikation bestätigen →</button>
+        <span style="font-size:12px;color:var(--ink-soft)">POST /api/analyze-concept-refine</span>
+      </div>
+    </section>
+
+    <!-- ========== TAB 3: HARDWARE ========== -->
+    <section class="panel" id="p3">
+      <div class="eyebrow">Schritt 3 · Hardware</div>
+      <h2>Bausteine wählen</h2>
+      <p class="lead">Kuratierte, geprüfte Optionen aus dem Grove-Ökosystem — kein Löten, keine Widerstandsberechnung. Sekundäre Bauteile werden automatisch abgeleitet.</p>
+
+      <div class="card"><h3>Microcontroller</h3>
+        <div class="hw-grid" id="mc">
+          <div class="hw-card selected" onclick="pickHw(this,'mc')"><h4>Seeed XIAO ESP32-C3</h4><div class="price">≈ 5,50 €</div>
+            <ul class="pros"><li>WLAN integriert</li><li>sehr kompakt</li></ul><ul class="cons"><li>wenige Pins</li></ul></div>
+          <div class="hw-card" onclick="pickHw(this,'mc')"><h4>Arduino Uno R4 + Base Shield</h4><div class="price">≈ 28,00 €</div>
+            <ul class="pros"><li>8 Grove-Ports</li><li>robust, gut dokumentiert</li></ul><ul class="cons"><li>größer, teurer</li></ul></div>
+          <div class="hw-card" onclick="pickHw(this,'mc')"><h4>M5Stack Core2</h4><div class="price">≈ 45,00 €</div>
+            <ul class="pros"><li>Display + Akku</li><li>ausstellungstauglich</li></ul><ul class="cons"><li>Overkill für 1 Sensor</li></ul></div>
+        </div>
+      </div>
+
+      <div class="card"><h3>Sensor</h3>
+        <div class="hw-grid" id="sens">
+          <div class="hw-card selected" onclick="pickHw(this,'sens')"><h4>Grove Capacitive Moisture</h4><div class="price">≈ 4,90 €</div>
+            <ul class="pros"><li>korrodiert nicht</li><li>dauerbetriebstauglich</li></ul><ul class="cons"><li>kalibrierung nötig</li></ul></div>
+          <div class="hw-card" onclick="pickHw(this,'sens')"><h4>Grove Moisture (resistiv)</h4><div class="price">≈ 2,50 €</div>
+            <ul class="pros"><li>günstig</li><li>einfaches Signal</li></ul><ul class="cons"><li>korrodiert mit der Zeit</li></ul></div>
+        </div>
+      </div>
+
+      <div class="card"><h3>Aktoren</h3>
+        <div class="hw-grid" id="akt">
+          <div class="hw-card selected" onclick="pickHw(this,'akt')"><h4>Grove Chainable RGB-LED + Speaker</h4><div class="price">≈ 9,80 €</div>
+            <ul class="pros"><li>volle Farbsteuerung</li><li>Töne &amp; Samples</li></ul><ul class="cons"><li>2 Ports belegt</li></ul></div>
+          <div class="hw-card" onclick="pickHw(this,'akt')"><h4>Grove LED rot/grün + Buzzer</h4><div class="price">≈ 4,40 €</div>
+            <ul class="pros"><li>minimal &amp; günstig</li></ul><ul class="cons"><li>nur Piepton, kein „Jammern"</li></ul></div>
+        </div>
+      </div>
+
+      <div class="card"><h3>Sekundäre Hardware <span style="font-family:var(--mono);font-size:10.5px;color:var(--ink-soft)">— automatisch abgeleitet</span></h3>
+        <ul class="sec-hw">
+          <li><span>Grove Base Shield / Adapter</span><span>1×</span></li>
+          <li><span>Grove-Kabel 20 cm</span><span>3×</span></li>
+          <li><span>USB-C Netzteil 5 V</span><span>1×</span></li>
+        </ul>
+      </div>
+
+      <div class="agent-status" id="status3"><div class="pulse"></div><span id="statusText3"></span></div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="buildCircuit()">Schaltungsstruktur erzeugen →</button>
+        <span style="font-size:12px;color:var(--ink-soft)">POST /api/create-circuit-diagram</span>
+      </div>
+    </section>
+
+    <!-- ========== TAB 4: STRUKTUR ========== -->
+    <section class="panel" id="p4">
+      <div class="eyebrow">Schritt 4 · Logik- &amp; Hardware-Struktur</div>
+      <h2>So hängt alles zusammen</h2>
+      <p class="lead">Klicke auf ein Bauteil für Details. Die Verbindungen entsprechen den Grove-Ports — keine freien Drähte, keine Widerstände.</p>
+
+      <div class="circuit-wrap">
+        <svg viewBox="0 0 640 230" width="100%" role="img" aria-label="Schaltungsdiagramm">
+          <defs><marker id="arr" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6" fill="none" stroke="#5A6172"/></marker></defs>
+          <!-- wires -->
+          <path d="M150,115 H255" stroke="#C46A2B" stroke-width="2" fill="none" marker-end="url(#arr)"/>
+          <path d="M385,80 H480" stroke="#5A6172" stroke-width="2" fill="none" marker-end="url(#arr)"/>
+          <path d="M385,150 H480" stroke="#5A6172" stroke-width="2" fill="none" marker-end="url(#arr)"/>
+          <text x="175" y="106" font-family="IBM Plex Mono" font-size="10" fill="#5A6172">A0 · analog</text>
+          <text x="400" y="71" font-family="IBM Plex Mono" font-size="10" fill="#5A6172">D2 · digital</text>
+          <text x="400" y="141" font-family="IBM Plex Mono" font-size="10" fill="#5A6172">D4 · PWM</text>
+          <!-- nodes -->
+          <g class="cnode" onclick="nodeInfo('sensor')"><rect x="20" y="85" width="130" height="60" rx="9" fill="#fff" stroke="#D9D3C7" stroke-width="1.5"/>
+            <text x="85" y="111" text-anchor="middle" font-family="IBM Plex Sans" font-size="12" font-weight="600" fill="#1E2430">Moisture-Sensor</text>
+            <text x="85" y="128" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5" fill="#5A6172">Grove · kapazitiv</text></g>
+          <g class="cnode" onclick="nodeInfo('mcu')"><rect x="255" y="75" width="130" height="80" rx="9" fill="#F3E3D4" stroke="#C46A2B" stroke-width="1.5"/>
+            <text x="320" y="107" text-anchor="middle" font-family="IBM Plex Sans" font-size="12" font-weight="600" fill="#1E2430">XIAO ESP32-C3</text>
+            <text x="320" y="124" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5" fill="#5A6172">Zustandsautomat</text></g>
+          <g class="cnode" onclick="nodeInfo('led')"><rect x="480" y="50" width="130" height="55" rx="9" fill="#fff" stroke="#D9D3C7" stroke-width="1.5"/>
+            <text x="545" y="73" text-anchor="middle" font-family="IBM Plex Sans" font-size="12" font-weight="600" fill="#1E2430">RGB-LED</text>
+            <text x="545" y="90" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5" fill="#5A6172">Grove · chainable</text></g>
+          <g class="cnode" onclick="nodeInfo('spk')"><rect x="480" y="125" width="130" height="55" rx="9" fill="#fff" stroke="#D9D3C7" stroke-width="1.5"/>
+            <text x="545" y="148" text-anchor="middle" font-family="IBM Plex Sans" font-size="12" font-weight="600" fill="#1E2430">Speaker</text>
+            <text x="545" y="165" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5" fill="#5A6172">Grove · audio</text></g>
+        </svg>
+      </div>
+      <div class="cnode-info" id="nodeInfo">Bauteil anklicken, um Funktion und Verkabelung zu sehen.</div>
+
+      <div class="card" style="margin-top:16px">
+        <h3>Anpassung per Prompt</h3>
+        <input type="text" placeholder="z. B. „Ersetze den Speaker durch einen Vibrationsmotor“ …">
+      </div>
+
+      <div class="agent-status" id="status4"><div class="pulse"></div><span id="statusText4"></span></div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="genCode()">Quellcode generieren →</button>
+        <button class="btn btn-ghost" onclick="goto(6)">Überspringen — direkt zum Ergebnis</button>
+      </div>
+    </section>
+
+    <!-- ========== TAB 5: CODE ========== -->
+    <section class="panel" id="p5">
+      <div class="eyebrow">Schritt 5 · Quellcode (optional)</div>
+      <h2>Aus dem Zustandsautomaten kompiliert</h2>
+      <p class="lead">Der Code wird aus der Zustandsmaschine erzeugt, nicht frei generiert. Parameter rechts ändern die markierten Werte live — ohne Neugenerierung.</p>
+
+      <div class="code-wrap">
+        <pre id="code"><span class="com">// Draft2Device · generiert aus Zustandsautomat v<span id="cVer">4</span></span>
+<span class="com">// Ziel: Seeed XIAO ESP32-C3 · Grove</span>
+<span class="kw">#include</span> <span class="str">&lt;Grove_Moisture.h&gt;</span>
+
+<span class="kw">const int</span> SCHWELLE_DURST   = <span class="num live" id="cThresh">30</span>;  <span class="com">// % Feuchte</span>
+<span class="kw">const int</span> JAMMER_INTERVALL = <span class="num live" id="cJammer">30</span>;  <span class="com">// Sekunden</span>
+<span class="kw">const int</span> BLINK_ANZAHL     = <span class="num live" id="cBlink">5</span>;   <span class="com">// grünes Blinken</span>
+
+<span class="kw">enum</span> Zustand { NEUTRAL, DURST, GIESSEN<span id="cFlut">, UEBERFLUTUNG</span> };
+Zustand aktuell = NEUTRAL;
+
+<span class="kw">void</span> <span class="fn">loop</span>() {
+  <span class="kw">int</span> feuchte = <span class="fn">leseFeuchtigkeit</span>();
+  <span class="kw">switch</span> (aktuell) {
+    <span class="kw">case</span> NEUTRAL:
+      <span class="kw">if</span> (feuchte &lt; SCHWELLE_DURST) aktuell = DURST;
+      <span class="kw">break</span>;
+    <span class="kw">case</span> DURST:
+      <span class="fn">ledRot</span>();
+      <span class="fn">jammernAlle</span>(JAMMER_INTERVALL);
+      <span class="kw">if</span> (<span class="fn">anstiegErkannt</span>()) aktuell = GIESSEN;
+      <span class="kw">break</span>;
+    <span class="kw">case</span> GIESSEN:
+      <span class="fn">blinkGruen</span>(BLINK_ANZAHL);
+      <span class="fn">froehlicherSound</span>();
+      aktuell = NEUTRAL;
+      <span class="kw">break</span>;
+  }
+}</pre>
+        <div class="param-panel">
+          <h4>Parameter · live</h4>
+          <div class="param"><label>Durst-Schwelle: <span id="pThreshV" style="color:var(--copper)">30 %</span></label>
+            <input type="range" min="10" max="60" value="30" oninput="liveParam('cThresh','pThreshV',this.value,' %')"></div>
+          <div class="param"><label>Jammer-Intervall: <span id="pJammerV" style="color:var(--copper)">30 s</span></label>
+            <input type="range" min="5" max="120" value="30" oninput="liveParam('cJammer','pJammerV',this.value,' s')"></div>
+          <div class="param"><label>Blink-Anzahl: <span id="pBlinkV" style="color:var(--copper)">5×</span></label>
+            <input type="range" min="1" max="10" value="5" oninput="liveParam('cBlink','pBlinkV',this.value,'×')"></div>
+          <button class="btn btn-ghost" style="width:100%;justify-content:center" onclick="toggleSim()" id="simBtn">▶ Im Simulator testen</button>
+        </div>
+      </div>
+
+      <!-- mock simulator -->
+      <div class="card" id="simPanel" style="display:none;margin-top:14px">
+        <h3>Simulator <span style="font-family:var(--mono);font-size:10.5px;color:var(--ink-soft)">— Demo · wird im echten System durch Wokwi (iframe) ersetzt</span></h3>
+        <div class="sim-wrap">
+          <div class="sim-stage">
+            <svg viewBox="0 0 200 190" width="170" role="img" aria-label="Virtuelle Pflanze">
+              <ellipse id="simGlow" cx="100" cy="40" rx="34" ry="34" fill="#C0392B" opacity="0"/>
+              <circle id="simLed" cx="100" cy="40" r="11" fill="#D9D3C7" stroke="#1E2430" stroke-width="1.5"/>
+              <text x="100" y="22" text-anchor="middle" font-family="IBM Plex Mono" font-size="9" fill="#5A6172">LED</text>
+              <path id="simPlant" d="M100,120 C100,95 86,92 80,78 M100,120 C100,92 116,90 121,74 M100,120 C100,100 100,88 100,72" stroke="#2E7D4F" stroke-width="4" fill="none" stroke-linecap="round"/>
+              <path d="M62,120 L138,120 L128,180 L72,180 Z" fill="#C46A2B" stroke="#1E2430" stroke-width="1.5"/>
+              <rect x="68" y="126" width="64" height="14" rx="3" fill="#5A3D27" id="simSoil"/>
+            </svg>
+            <div class="sim-msg" id="simMsg">Alles ruhig. Zieh die Feuchtigkeit nach unten …</div>
+          </div>
+          <div class="sim-controls">
+            <label>Bodenfeuchte (virtueller Sensor): <span id="simMoistV" style="color:var(--copper)">55 %</span></label>
+            <input type="range" min="0" max="100" value="55" id="simMoist" oninput="simTick(+this.value)" aria-label="Virtuelle Bodenfeuchte">
+            <div class="sim-state">Aktiver Zustand: <b id="simState">Pflanze ist zufrieden</b></div>
+            <p style="font-size:12px;color:var(--ink-soft);margin-top:10px">Der Simulator führt exakt den generierten Zustandsautomaten aus — Schwelle und Blink-Anzahl von den Slidern oben gelten auch hier.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="goto(6)">Zum Ergebnis →</button>
+      </div>
+    </section>
+
+    <!-- ========== TAB 6: FINAL ========== -->
+    <section class="panel" id="p6">
+      <div class="eyebrow">Ergebnis</div>
+      <h2>Die jammernde Pflanze — bereit zum Bauen</h2>
+      <p class="lead">Alle Artefakte stammen aus demselben Zustandsautomaten (v<span id="finVer">5</span>) — Liste, Schaltplan und Code sind garantiert konsistent.</p>
+
+      <div class="final-grid">
+        <div class="card"><h3>Hardwareliste mit Preiseinschätzung</h3>
+          <table>
+            <tr><th>Bauteil</th><th class="num">Stück</th><th class="num">Preis</th></tr>
+            <tr><td>Seeed XIAO ESP32-C3</td><td class="num">1</td><td class="num">5,50 €</td></tr>
+            <tr><td>Grove Capacitive Moisture</td><td class="num">1</td><td class="num">4,90 €</td></tr>
+            <tr><td>Grove RGB-LED + Speaker</td><td class="num">1</td><td class="num">9,80 €</td></tr>
+            <tr><td>Grove Adapter &amp; Kabel</td><td class="num">1</td><td class="num">6,20 €</td></tr>
+            <tr><td>USB-C Netzteil</td><td class="num">1</td><td class="num">7,00 €</td></tr>
+            <tr class="total"><td>Gesamt</td><td class="num"></td><td class="num">≈ 33,40 €</td></tr>
+          </table>
+        </div>
+        <div class="card"><h3>Downloads</h3>
+          <div style="display:flex;flex-direction:column;gap:10px;margin-top:6px">
+            <button class="btn btn-ghost" onclick="alert('Demo — würde stueckliste.csv exportieren')">↓ Hardwareliste (CSV)</button>
+            <button class="btn btn-ghost" onclick="alert('Demo — würde schaltplan.svg exportieren')">↓ Schaltplan (SVG)</button>
+            <button class="btn btn-ghost" onclick="alert('Demo — würde sketch.ino exportieren')">↓ Quellcode (sketch.ino)</button>
+            <button class="btn btn-ghost" onclick="alert('Demo — würde zustandsautomat.json (XState) exportieren')">↓ Zustandsautomat (JSON)</button>
+          </div>
+          <p style="font-size:12px;color:var(--ink-soft);margin-top:14px">Tipp: Die JSON-Datei ist die Single Source of Truth — sie lässt sich später wieder importieren und weiterbearbeiten.</p>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-ghost" onclick="location.reload()">↺ Neues Projekt starten</button>
+      </div>
+    </section>
+  </main>
+
+  <!-- ============ IR RAIL (signature) ============ -->
+  <aside class="ir-rail" aria-label="Zustandsautomat">
+    <h3>So versteht das System deine Idee</h3>
+    <div class="ver" id="irVer">noch keine Analyse</div>
+    <div id="irEmpty" class="ir-empty">Erscheint nach der ersten Analyse und zeigt jederzeit, was das System gerade über dein Projekt weiß.</div>
+    <div class="sm" id="sm" style="display:none">
+      <div class="state" id="stA"><h5>Pflanze ist zufrieden <span class="sid">A</span></h5><div class="trig">solange genug Feuchtigkeit da ist</div>
+        <div class="act"><span><span class="led off"></span>Licht aus, alles ruhig</span></div></div>
+      <div class="state" id="stB"><h5>Pflanze hat Durst <span class="sid">B</span></h5><div class="trig">sobald Feuchte unter <b id="irThresh">30 %</b> fällt</div>
+        <div class="act"><span><span class="led red"></span>leuchtet rot</span><span>♪ jammert alle <b id="irJammer">30 s</b></span></div></div>
+      <div class="state" id="stC"><h5>Pflanze wird gegossen <span class="sid">C</span></h5><div class="trig">wenn Feuchtigkeit plötzlich steigt</div>
+        <div class="act"><span><span class="led green"></span>blinkt <b id="irBlink">5×</b> grün</span><span>♪ freut sich · dann wieder zufrieden</span></div></div>
+      <div class="state" id="stD" style="display:none"><h5>Zu viel Wasser <span class="sid">D</span></h5><div class="trig">wenn Feuchte über 85 % steigt</div>
+        <div class="act"><span><span class="led" style="background:#3B5BA5"></span>pulsiert blau als Warnung</span></div></div>
+    </div>
+    <div class="ir-patch" id="irPatch"></div>
+  </aside>
+</div>
+
+<script>
+/* ---------- navigation ---------- */
+let unlocked = 1;
+function goto(n){
+  if(n > unlocked) return;
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('visible'));
+  document.getElementById('p'+n).classList.add('visible');
+  document.querySelectorAll('.step').forEach(s=>{
+    const k = +s.dataset.step;
+    s.classList.toggle('active', k===n);
+    s.classList.toggle('done', k<n && k<=unlocked);
+    s.classList.toggle('locked', k>unlocked);
+  });
+  window.scrollTo({top:0});
+}
+function unlock(n){ unlocked = Math.max(unlocked,n); goto(n); }
+
+/* ---------- agent simulation (mirrors SSE stages) ---------- */
+function runStages(statusId, textId, stages, done){
+  const box = document.getElementById(statusId), txt = document.getElementById(textId);
+  box.classList.add('running'); let i = 0;
+  txt.textContent = stages[0];
+  const t = setInterval(()=>{
+    i++;
+    if(i < stages.length){ txt.textContent = stages[i]; }
+    else { clearInterval(t); box.classList.remove('running'); done(); }
+  }, 850);
+}
+
+/* ---------- IR rail ---------- */
+let irVersion = 0;
+function patchIR(msg, hlId){
+  irVersion++;
+  document.getElementById('irVer').textContent = 'v'+irVersion+' · '+new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+  const p = document.getElementById('irPatch');
+  p.textContent = '✓ '+msg; p.classList.remove('show'); void p.offsetWidth; p.classList.add('show');
+  if(hlId){ const el = document.getElementById(hlId); el.classList.add('hl'); setTimeout(()=>el.classList.remove('hl'),1500); }
+  const cv = document.getElementById('cVer'); if(cv) cv.textContent = irVersion;
+  const fv = document.getElementById('finVer'); if(fv) fv.textContent = irVersion;
+}
+
+/* ---------- tab 1 ---------- */
+function loadSketch(){
+  document.getElementById('sketch').style.display = 'block';
+  const dz = document.getElementById('dz');
+  dz.classList.add('filled');
+  document.getElementById('dz-label').textContent = '✓ skizze_blumentopf.jpg geladen';
+  document.getElementById('analyzeBtn').disabled = false;
+}
+function mockAudio(){
+  const s = document.getElementById('audioState'), b = document.getElementById('audioBtn');
+  b.disabled = true; s.textContent = '● rec …';
+  setTimeout(()=>{ s.textContent = '✓ 0:12 transkribiert: „…und wenn man sie gießt, soll sie sich freuen, so richtig.“'; b.disabled = false; b.textContent = '↺ Neu aufnehmen'; },1400);
+}
+function runAnalyse(){
+  runStages('status1','statusText1',
+    ['Analysiere Skizze …','Lese Randnotizen & Pfeile …','Verschmelze Modalitäten …','Extrahiere Sensorik & Aktorik …','Baue Zustandsautomat …','Suche offene Lücken …'],
+    ()=>{
+      document.getElementById('irEmpty').style.display = 'none';
+      document.getElementById('sm').style.display = 'block';
+      patchIR('Idee erfasst — drei Verhaltensweisen erkannt');
+      unlock(2);
+    });
+}
+
+/* ---------- tab 2: Lücken ---------- */
+function updateL1(v){
+  document.getElementById('l1v').textContent = v+' %';
+  document.getElementById('irThresh').textContent = v+' %';
+  patchIR('Durstig ab '+v+' % Feuchte', 'stB');
+  const c = document.getElementById('cThresh'); if(c) c.textContent = v;
+  document.getElementById('pThreshV').textContent = v+' %';
+}
+function updateL2(v){
+  document.getElementById('l2v').textContent = v+'×';
+  document.getElementById('irBlink').textContent = v+'×';
+  patchIR('Blinkt jetzt '+v+'× beim Gießen', 'stC');
+  const c = document.getElementById('cBlink'); if(c) c.textContent = v;
+  document.getElementById('pBlinkV').textContent = v+'×';
+  const sk = document.getElementById('skip2'); sk.classList.remove('skipped'); sk.textContent = 'Bewusst offen lassen — entscheide ich beim Testen';
+}
+function skipL2(){
+  const sk = document.getElementById('skip2');
+  sk.classList.add('skipped'); sk.textContent = '✓ offen gelassen — als TODO im Code markiert';
+  document.getElementById('irBlink').textContent = '?';
+  patchIR('Blink-Dauer offen gelassen — wird beim Testen entschieden', 'stC');
+}
+function pickL3(el, val){
+  el.parentNode.querySelectorAll('.choice').forEach(c=>c.classList.remove('selected'));
+  el.classList.add('selected');
+  const stD = document.getElementById('stD'), flut = document.getElementById('cFlut');
+  if(val === 'warn'){ stD.style.display = 'block'; patchIR('Neu: Warnung bei zu viel Wasser','stD'); if(flut) flut.style.display='inline'; }
+  else { stD.style.display = 'none'; patchIR('Warnung bei zu viel Wasser entfernt'); if(flut) flut.style.display='none'; }
+}
+function finalize(){
+  runStages('status2','statusText2',
+    ['Validiere Antworten …','Patche Zustandsautomat …','Prüfe auf Restlücken … keine kritischen'],
+    ()=>{ patchIR('Spezifikation bestätigt — bereit für Hardware'); unlock(3); });
+}
+
+/* ---------- tab 3 ---------- */
+function pickHw(el, group){
+  document.querySelectorAll('#'+group+' .hw-card').forEach(c=>c.classList.remove('selected'));
+  el.classList.add('selected');
+}
+function buildCircuit(){
+  runStages('status3','statusText3',
+    ['Prüfe Port-Kompatibilität …','Leite sekundäre Hardware ab …','Erzeuge Schaltungsstruktur …'],
+    ()=>{ patchIR('Hardware gewählt: XIAO + 3 Grove-Module'); unlock(4); });
+}
+
+/* ---------- tab 4 ---------- */
+const nodeTexts = {
+  sensor:'Kapazitiver Feuchtigkeitssensor an Port A0. Liefert 0–100 % Bodenfeuchte; korrosionsfrei, daher dauerhafter Einsatz in echter Erde möglich.',
+  mcu:'Der Microcontroller führt den Zustandsautomaten aus — exakt die Logik aus der rechten Leiste, kompiliert aus derselben JSON-Definition.',
+  led:'Chainable RGB-LED an Port D2. Kann jede Farbe darstellen: rot (Durst), grün blinkend (Gießen), blau pulsierend (Überflutung).',
+  spk:'Grove Speaker an Port D4 (PWM). Spielt das „Jammern" als Tonfolge; für echte Samples wäre ein MP3-Modul die Alternative.'
+};
+function nodeInfo(k){ document.getElementById('nodeInfo').textContent = nodeTexts[k]; }
+function genCode(){
+  runStages('status4','statusText4',
+    ['Lade Code-Templates (Grove) …','Injiziere Zustandsautomat …','Setze Parameter-Slots …'],
+    ()=>{ unlock(5); });
+}
+
+/* ---------- tab 5: simulator (runs the same state machine) ---------- */
+function toggleSim(){
+  const p = document.getElementById('simPanel'), b = document.getElementById('simBtn');
+  const open = p.style.display !== 'none';
+  p.style.display = open ? 'none' : 'block';
+  b.textContent = open ? '▶ Im Simulator testen' : '■ Simulator schließen';
+  if(!open) simTick(+document.getElementById('simMoist').value);
+}
+let simZustand = 'A', simPrev = 55;
+function simTick(moist){
+  document.getElementById('simMoistV').textContent = moist+' %';
+  const schwelle = +document.getElementById('cThresh').textContent;
+  const blinkN = document.getElementById('cBlink').textContent;
+  const flutAktiv = document.getElementById('cFlut').style.display !== 'none';
+  const led = document.getElementById('simLed'), glow = document.getElementById('simGlow'),
+        msg = document.getElementById('simMsg'), st = document.getElementById('simState'),
+        plant = document.getElementById('simPlant');
+  led.classList.remove('blinking');
+
+  if(flutAktiv && moist > 85){
+    simZustand = 'D';
+    led.setAttribute('fill','#3B5BA5'); glow.setAttribute('fill','#3B5BA5'); glow.setAttribute('opacity','.25');
+    st.textContent = 'Zu viel Wasser'; msg.textContent = 'Pulsiert blau — Warnung vor Überflutung.';
+  } else if(simZustand === 'B' && moist > simPrev + 8){
+    simZustand = 'C';
+    led.setAttribute('fill','#2E7D4F'); glow.setAttribute('fill','#2E7D4F'); glow.setAttribute('opacity','.3');
+    void led.getBBox(); led.classList.add('blinking');
+    st.textContent = 'Pflanze wird gegossen';
+    msg.textContent = '♪ Freut sich! Blinkt '+blinkN+'× grün, dann wieder zufrieden.';
+    setTimeout(()=>{ if(simZustand==='C'){ simZustand='A'; simTick(+document.getElementById('simMoist').value); } }, 2400);
+  } else if(moist < schwelle && simZustand !== 'C'){
+    simZustand = 'B';
+    led.setAttribute('fill','#C0392B'); glow.setAttribute('fill','#C0392B'); glow.setAttribute('opacity','.3');
+    st.textContent = 'Pflanze hat Durst';
+    msg.textContent = '♪ „Mir ist so trocken …“ — leuchtet rot. Zieh die Feuchtigkeit schnell hoch zum Gießen!';
+  } else if(simZustand !== 'C'){
+    simZustand = 'A';
+    led.setAttribute('fill','#D9D3C7'); glow.setAttribute('opacity','0');
+    st.textContent = 'Pflanze ist zufrieden'; msg.textContent = 'Alles ruhig. Zieh die Feuchtigkeit nach unten …';
+  }
+  plant.setAttribute('stroke', moist < schwelle ? '#8a9a5b' : '#2E7D4F');
+  simPrev = moist;
+}
+
+
+function liveParam(codeId, labelId, v, suffix){
+  document.getElementById(codeId).textContent = v;
+  document.getElementById(labelId).textContent = v + suffix;
+  if(codeId === 'cThresh'){ document.getElementById('irThresh').textContent = v+' %'; document.getElementById('l1').value = v; document.getElementById('l1v').textContent = v+' %'; patchIR('Durstig ab '+v+' % Feuchte','stB'); }
+  if(codeId === 'cJammer'){ document.getElementById('irJammer').textContent = v+' s'; patchIR('Jammert jetzt alle '+v+' s','stB'); }
+  if(codeId === 'cBlink'){ document.getElementById('irBlink').textContent = v+'×'; document.getElementById('l2').value = v; document.getElementById('l2v').textContent = v+'×'; patchIR('Blinkt jetzt '+v+'× beim Gießen','stC'); }
+}
+</script>
+</body>
+</html>
