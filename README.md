@@ -1,96 +1,96 @@
 # Draft2Device
 
-Multimodale KI-Plattform: wandelt analoge Storyboard-Skizzen in Hardware-Specs
-und Quellcode um. 6-Schritte-Wizard, von der Ideenbeschreibung bis zum
-fertigen Schaltplan samt generiertem Code und PDF-Export.
+A multimodal AI platform that turns analog storyboard sketches into hardware
+specs and source code. A 6-step wizard, from the initial idea all the way to a
+finished circuit diagram including generated code and a PDF export.
 
-Dieses Repository enthält **Frontend, Backend und Datenbank an einer Stelle**
-(Monorepo), damit sich das Projekt mit einem Clone komplett durchspielen lässt.
+This repository keeps **frontend, backend and database in one place**
+(a monorepo), so the whole project can be run end to end from a single clone.
 
-## Struktur
+## Structure
 
 ```
 draft2device/
 ├── frontend/   React + TypeScript + Vite, Tailwind, shadcn/ui, Zustand,
 │               TanStack Query, React Hook Form + Zod
 ├── backend/    FastAPI + OpenAI + SQLite
-│   ├── main.py           Einstiegspunkt, bindet alle Endpoints ein
-│   ├── config.py         gemeinsamer OpenAI-Client, Modellname, API-Key
-│   ├── db/               SQLite-Anbindung + Datenbankdatei
-│   ├── endpoints/        je Endpoint ein Ordner (router/schema/prompt)
-│   ├── static/           Test-Visualizer für den Schaltplan (/viewer/)
-│   └── tests/            Pipeline-Test (mockt die Modell-Aufrufe)
-├── package.json        Start-Skripte für beide Teile
+│   ├── main.py           entry point, wires up all endpoints
+│   ├── config.py         shared OpenAI client, model name, API key
+│   ├── db/               SQLite access layer + database file
+│   ├── endpoints/        one folder per endpoint (router/schema/prompt)
+│   ├── static/           test visualizer for the circuit diagram (/viewer/)
+│   └── tests/            pipeline test (mocks all model calls)
+├── package.json        start scripts for both parts
 └── README.md
 ```
 
-## Voraussetzungen
+## Requirements
 
-- Node.js ≥ 20 (getestet mit v26)
-- Python 3.11 (getestet mit 3.11.5)
-- Ein OpenAI-API-Key
+- Node.js ≥ 20 (tested with v26)
+- Python 3.11 (tested with 3.11.5)
+- An OpenAI API key
 
-## Schnellstart
+## Quick start
 
 ### 1. Backend
 
 ```bash
 cd backend
 
-# virtuelle Umgebung anlegen und Abhängigkeiten installieren
+# create a virtual environment and install dependencies
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 
-# API-Key hinterlegen (wird von config.py gelesen)
-cp .env.example .env        # danach den echten Key in .env eintragen
+# provide the API key (read by config.py)
+cp .env.example .env        # then put the real key into .env
 
-# starten
+# start it
 python -m uvicorn main:app --reload
 ```
 
-Läuft dann auf `http://127.0.0.1:8000`. Die automatische API-Doku ist unter
-`http://127.0.0.1:8000/docs` erreichbar, der Schaltplan-Test-Visualizer unter
+It then runs on `http://127.0.0.1:8000`. The automatic API docs are available at
+`http://127.0.0.1:8000/docs` and the circuit diagram test visualizer at
 `http://127.0.0.1:8000/viewer/`.
 
-> Falls uvicorn beim Start über eine zu alte `websockets`-Version stolpert,
-> hilft `pip install -U websockets` oder der Aufruf
+> If uvicorn refuses to start because of an outdated `websockets` version,
+> either run `pip install -U websockets` or start it with
 > `python -m uvicorn main:app --reload --ws none`.
 
 ### 2. Frontend
 
 ```bash
-npm install          # im Ordner frontend/
+npm install          # inside the frontend/ folder
 npm run dev
 ```
 
-Läuft auf `http://localhost:5173`.
+It then runs on `http://localhost:5173`.
 
-### 3. Beides zusammen
+### 3. Both together
 
-Im Projekt-Root:
+From the repository root:
 
 ```bash
-npm run backend:install   # einmalig: Backend-Abhängigkeiten
-npm run dev               # Frontend
-npm run backend           # Backend (eigenes Terminal)
+npm run backend:install   # once: backend dependencies
+npm run dev               # frontend
+npm run backend           # backend (separate terminal)
 ```
 
-Das Frontend erwartet das Backend unter `http://127.0.0.1:8000`. Der
-Vite-Proxy in `frontend/vite.config.ts` leitet `/api`, `/projects`, `/analyze`,
-`/hardware`, `/circuit-diagram` und `/code` dorthin weiter. Das Frontend allein
-startet also, aber ab Schritt 3 der Pipeline werden Daten vom Backend gebraucht.
+The frontend expects the backend at `http://127.0.0.1:8000`. The Vite proxy in
+`frontend/vite.config.ts` forwards `/api`, `/projects`, `/analyze`, `/hardware`,
+`/circuit-diagram` and `/code` there. The frontend does start on its own, but
+from step 3 of the pipeline onwards it needs data from the backend.
 
-## API-Endpoints (Backend)
+## API endpoints (backend)
 
-| Endpoint | Datei | Zweck |
+| Endpoint | File | Purpose |
 | --- | --- | --- |
-| `POST /projects` | `endpoints/projects/` | Projekt anlegen |
-| `POST /analyze`, `GET /analyze/{id}` | `endpoints/analyze/` | Konzeptstruktur aus Skizze + Beschreibung |
-| `POST /hardware`, `POST /hardware/select` | `endpoints/hardware/` | Hardware-Vorschläge + Auswahl |
-| `POST /circuit-diagram` | `endpoints/circuit_diagram/` | Schaltplan inkl. Montageschritten |
-| `POST /code`, `GET /code/{id}` | `endpoints/code/` | Quellcode-Generierung |
-| `POST /api/glossary/extract-and-explain` | `endpoints/glossary/` | Fachbegriffe + Erklärungen für die Tooltips |
+| `POST /projects` | `endpoints/projects/` | create a project |
+| `POST /analyze`, `GET /analyze/{id}` | `endpoints/analyze/` | concept structure from sketch + description |
+| `POST /hardware`, `POST /hardware/select` | `endpoints/hardware/` | hardware suggestions + selection |
+| `POST /circuit-diagram` | `endpoints/circuit_diagram/` | circuit diagram incl. assembly steps |
+| `POST /code`, `GET /code/{id}` | `endpoints/code/` | source code generation |
+| `POST /api/glossary/extract-and-explain` | `endpoints/glossary/` | technical terms + explanations for the tooltips |
 
 ## Tests
 
@@ -99,51 +99,50 @@ cd backend
 pytest tests/ -v
 ```
 
-Die Tests spielen die komplette Pipeline durch (`/projects` → `/analyze` →
-`/hardware` → `/circuit-diagram`) und **mocken alle Modell-Aufrufe**, laufen
-also ohne API-Key-Verbrauch gegen eine temporäre SQLite-Datei.
+The tests walk the entire pipeline (`/projects` → `/analyze` → `/hardware` →
+`/circuit-diagram`) and **mock all model calls**, so they run without consuming
+any API budget, against a temporary SQLite file.
 
-## Datenbank
+## Database
 
-SQLite, eine Datei: `backend/db/draft2device.db`. Das Schema wird beim
-Serverstart automatisch angelegt (`db.init_db()`), ein leerer Clone
-funktioniert also sofort.
+SQLite, a single file: `backend/db/draft2device.db`. The schema is created
+automatically on server start (`db.init_db()`), so an empty clone works
+immediately.
 
-Die aktive Datenbankdatei wird **bewusst mit eingecheckt**, damit die
-Demo-Daten (angelegte Projekte inklusive Analyse-, Hardware-, Schaltplan- und
-Code-Artefakten) überall verfügbar sind. Wenn ihr das nicht wollt:
+The active database file is **deliberately committed**, so that the demo data
+(created projects including their analysis, hardware, circuit diagram and code
+artifacts) is available everywhere. If you do not want that:
 
 ```bash
 git rm --cached backend/db/draft2device.db
-# dann in .gitignore ergänzen: backend/db/*.db
+# then add to .gitignore: backend/db/*.db
 ```
 
-Die Backup-Dateien `*.db.bak*` werden nicht eingecheckt, bleiben aber lokal
-liegen.
+The backup files `*.db.bak*` are not committed, but they do stay on disk.
 
 ## Secrets
 
-`backend/key.py` und `backend/.env` enthalten den OpenAI-API-Key und sind
-beide per `.gitignore` ausgeschlossen. Eingecheckt wird nur
-`backend/.env.example` als Vorlage.
+`backend/key.py` and `backend/.env` contain the OpenAI API key and are both
+excluded via `.gitignore`. Only `backend/.env.example` is committed, as a
+template.
 
-`config.py` sucht den Key in dieser Reihenfolge: Umgebungsvariable
-`OPENAI_API_KEY` (aus `.env`) → lokale `key.py`. Fehlt beides, bricht der
-Serverstart mit einer klaren Meldung ab.
+`config.py` looks for the key in this order: the `OPENAI_API_KEY` environment
+variable (from `.env`) → the local `key.py`. If both are missing, the server
+refuses to start with a clear message.
 
-## Herkunft dieses Repos
+## Where this repository comes from
 
-Zusammengeführt aus drei Quellen:
+Merged together from three sources:
 
-- `Projekt_Moltimodale-Genarative-KI_Frondend` — Frontend
-- `draft2device_server-main/_final_` — aktuellster Backend-Stand (analyze,
+- `Projekt_Moltimodale-Genarative-KI_Frondend` — the frontend
+- `draft2device_server-main/_final_` — the most recent backend state (analyze,
   hardware, circuit_diagram, code, projects)
-- der Glossary-Endpoint aus dem früheren v2-Backend (Branch `backup`), hier
-  eingepasst auf den gemeinsamen OpenAI-Client und Modellnamen aus `config.py`
+- the glossary endpoint from the earlier v2 backend (branch `backup`), adapted
+  here to use the shared OpenAI client and model name from `config.py`
 
-## Konventionen
+## Conventions
 
-- Alle UI-Texte auf Deutsch.
-- Design-Referenz: `frontend/reference/draft2device_prototype.html`
-- Ein Endpoint pro Ordner unter `backend/endpoints/`; Modell-Einstellungen
-  gehören zentral in `backend/config.py`, nicht in den einzelnen Endpoint.
+- All UI texts are in German.
+- Design reference: `frontend/reference/draft2device_prototype.html`
+- One endpoint per folder under `backend/endpoints/`; model settings belong
+  centrally in `backend/config.py`, not in the individual endpoints.
