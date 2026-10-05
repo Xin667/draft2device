@@ -42,8 +42,12 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 
-# provide the API key (read by config.py)
-cp .env.example .env        # then put the real key into .env
+# provide the API key (read by config.py) - either of these two ways:
+#   a) copy the template and put the real key into .env
+cp .env.example .env
+#   b) or create a file key.py next to config.py containing:
+#      API_KEY = "sk-..."
+# Either way the file stays local and is gitignored.
 
 # start it
 python -m uvicorn main:app --reload
