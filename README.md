@@ -34,6 +34,9 @@ draft2device/
 
 ### 1. Backend
 
+Go into the backend folder first — `.env.example` lives there, not in the
+repository root:
+
 ```bash
 cd backend
 
@@ -41,15 +44,39 @@ cd backend
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+```
 
-# provide the API key (read by config.py) - either of these two ways:
-#   a) copy the template and put the real key into .env
+Now provide the API key. **This is two separate actions:**
+
+**Step 1** — copy the template to a real config file (still inside `backend/`):
+
+```bash
 cp .env.example .env
-#   b) or create a file key.py next to config.py containing:
-#      API_KEY = "sk-..."
-# Either way the file stays local and is gitignored.
+```
 
-# start it
+**Step 2** — open the file `backend/.env` in your editor and replace this
+placeholder line:
+
+```text
+OPENAI_API_KEY=sk-proj-hier-den-echten-key-eintragen
+```
+
+with your own key, then save. Nothing else in the file needs changing.
+
+A few notes on that file:
+
+- `.env` starts with a dot, so Finder hides it. In VS Code just open the
+  `backend` folder and it shows up in the file list; from the terminal use
+  `open -e .env` (TextEdit) or `nano .env`.
+- It is listed in `.gitignore`, so it stays on your machine and never reaches
+  GitHub.
+- If the key is missing entirely, the server refuses to start with a clear
+  message. If it is present but wrong, the server starts and only the AI calls
+  fail.
+
+Then start the server:
+
+```bash
 python -m uvicorn main:app --reload
 ```
 
@@ -126,13 +153,11 @@ The backup files `*.db.bak*` are not committed, but they do stay on disk.
 
 ## Secrets
 
-`backend/key.py` and `backend/.env` contain the OpenAI API key and are both
-excluded via `.gitignore`. Only `backend/.env.example` is committed, as a
-template.
-
-`config.py` looks for the key in this order: the `OPENAI_API_KEY` environment
-variable (from `.env`) → the local `key.py`. If both are missing, the server
-refuses to start with a clear message.
+The OpenAI API key lives in `backend/.env`, which is excluded via `.gitignore` —
+only the template `backend/.env.example` is committed. `config.py` reads the key
+from the `OPENAI_API_KEY` entry in that file and refuses to start with a clear
+message if it is missing. The same value is never stored anywhere else in the
+repository.
 
 ## Where this repository comes from
 
