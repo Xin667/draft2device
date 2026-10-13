@@ -78,7 +78,7 @@ export interface ProjectState {
     answers: AnswersMap,
     extraPrompt?: string,
   ) => Promise<AnalyzeResult | null>
-  loadOrGenerateHardware: () => Promise<HardwareResult | null>
+  loadOrGenerateHardware: (message?: string) => Promise<HardwareResult | null>
   chooseHardware: (selections: HardwareSelectionItem[]) => Promise<HardwareResult | null>
   loadOrGenerateCircuit: () => Promise<CircuitDiagramResponse | null>
 }
@@ -241,12 +241,27 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
     return get().submitAnalyze({ message })
   },
 
-  loadOrGenerateHardware: async () => {
+  loadOrGenerateHardware: async (message?: string) => {
     const { projectId, hardwareData } = get()
     if (!projectId) return null
+
+    // Wenn der Nutzer eine Chat-Nachricht schickt, IMMER neu generieren:
+    if (message?.trim()) {
+      set({ status: 'loading', error: null })
+      try {
+        const generated = await fetchHardware(projectId, message.trim())
+        set({ hardwareData: generated, status: 'ready' })
+        return generated
+      } catch (err) {
+        set({ status: 'error', error: toApiError(err) })
+        return null
+      }
+    }
+
+    // Normaler Aufruf beim Laden des Steps:
     if (hardwareData) return hardwareData
 
-    set({ status: 'loading' })
+    set({ status: 'loading', error: null })
     try {
       try {
         const existing = await getLatestHardwareSelection(projectId)

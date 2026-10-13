@@ -557,7 +557,7 @@ export async function fetchHardware(
 
   const form = new FormData()
   form.append('project_id', projectId)
-  form.append('message', message)
+  form.append('message', message.trim() || 'Ermittle passende Hardware')
   form.append('disable_web_search', String(disableWebSearch))
   form.append('local_search_only', String(localSearchOnly))
 
