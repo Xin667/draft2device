@@ -26,9 +26,10 @@ interface BomRow {
 export function Step6Ergebnis() {
   const projectId = useProjectStore((s: ProjectState) => s.projectId);
   const structure = useProjectStore((s: ProjectState) => s.structure);
-
+  const storeHardware = useProjectStore((s: any) => s.hardwareData); 
   const [diagram, setDiagram] = useState<CircuitDiagramResponse | null>(null);
-  const [hardware, setHardware] = useState<HardwareResult | null>(null);
+  const [hardware, setHardware] = useState<HardwareResult | null>(storeHardware ?? null);
+
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [codeResult, setCodeResult] = useState<GeneratedCodeResult | null>(null);
@@ -128,9 +129,10 @@ export function Step6Ergebnis() {
     return () => controller.abort();
   }, [projectId]);
 
+  const currentHardware = hardware ?? storeHardware;
   const bom = useMemo(() => {
-    return hardware ? buildBom(hardware) : [];
-  }, [hardware]);
+    return currentHardware ? buildBom(currentHardware) : [];
+  }, [currentHardware]);
 
   /**
    * Exportdaten nur neu erzeugen, wenn sich die relevanten
@@ -233,7 +235,7 @@ export function Step6Ergebnis() {
             onClick={() => void handleDownloadJSON()}
             className="rounded-full bg-[#C46A2B] px-4 py-2 text-xs font-semibold text-white hover:bg-[#A0522D] transition-colors"
           >
-            📦 JSON + Quellcode als ZIP
+             JSON + Quellcode als ZIP
           </button>
 
           <button
@@ -249,7 +251,7 @@ export function Step6Ergebnis() {
             onClick={() => window.print()}
             className="rounded-full bg-[#007A5A] px-4 py-2 text-xs font-semibold text-white hover:bg-[#006248] transition-colors"
           >
-            🖨️ Als PDF speichern
+             Als PDF speichern
           </button>
         </div>
       </div>
@@ -321,77 +323,6 @@ export function Step6Ergebnis() {
         </section>
       )}
 
-      {/* Code-Ergebnis */}
-      <div className="overflow-hidden rounded-2xl border border-gray-800 bg-[#12151B] shadow-xl">
-        <div className="flex min-h-12 items-end border-b border-gray-800 bg-[#1A1E27]">
-          <div className="flex shrink-0 items-center gap-1.5 self-stretch px-4">
-            <span className="h-2.5 w-2.5 rounded-full bg-red-500/80" />
-            <span className="h-2.5 w-2.5 rounded-full bg-yellow-500/80" />
-            <span className="h-2.5 w-2.5 rounded-full bg-green-500/80" />
-          </div>
-
-          <div className="flex min-w-0 flex-1 self-stretch overflow-x-auto">
-            {codeResult?.files.map((file) => {
-              const isActive = file.path === activeCodeFile?.path;
-
-              return (
-                <button
-                  key={file.path}
-                  type="button"
-                  onClick={() => setActiveFilePath(file.path)}
-                  className={[
-                    'min-w-0 flex-1 truncate border-r border-[#2B313F]',
-                    'px-3 text-xs font-mono',
-                    isActive
-                      ? 'border-t border-t-[#C46A2B] bg-[#12151B] text-gray-200'
-                      : 'text-gray-500 hover:text-gray-300',
-                  ].join(' ')}
-                  aria-selected={isActive}
-                  role="tab"
-                >
-                  {file.path}
-                </button>
-              );
-            })}
-          </div>
-
-          <button
-            type="button"
-            onClick={() => void handleCopyCode()}
-            disabled={!activeCodeFile}
-            title="Aktuelle Code-Datei kopieren"
-            aria-label="Aktuelle Code-Datei kopieren"
-            className="mr-3 flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-gray-400 hover:bg-[#2B313F] hover:text-white disabled:opacity-40"
-          >
-            {codeCopied ? (
-              <Check size={16} aria-hidden="true" />
-            ) : (
-              <Copy size={16} aria-hidden="true" />
-            )}
-          </button>
-        </div>
-
-        <div
-          className={[
-            'border-b border-[#2B313F] bg-[#1A1E27]',
-            'px-4 py-2 text-xs font-mono',
-            codeError ? 'text-red-400' : 'text-gray-400',
-          ].join(' ')}
-        >
-          {codeLoading
-            ? 'Code wird geladen...'
-            : codeError || ''}
-        </div>
-
-        <div className="min-h-[360px] max-h-[520px] overflow-x-auto p-4">
-          <pre className="text-xs font-mono leading-relaxed text-emerald-400">
-            <code>
-              {activeCodeFile?.content ||
-                'Noch keine Code-Ergebnisse vorhanden.'}
-            </code>
-          </pre>
-        </div>
-      </div>
 
       {/* JSON-Ausgabe */}
       <div className="overflow-hidden rounded-2xl border border-gray-800 bg-[#12151B] shadow-xl">
@@ -416,40 +347,101 @@ export function Step6Ergebnis() {
 
       {/* 1.2 Hardware-Stückliste */}
       {bom.length > 0 && (
-        <section className="print-break-avoid">
-          <h3 className="text-sm font-bold text-[#1E2430] uppercase tracking-wider mb-3">
+        <section className="print-break-avoid space-y-3">
+          <h3 className="text-sm font-bold text-[#1E2430] uppercase tracking-wider">
             Hardware-Stückliste ({bom.length})
           </h3>
-          <div className="border border-[#D9D3C7] rounded-xl overflow-hidden bg-white">
-            <table className="w-full text-left text-xs">
+
+          <div className="border border-[#D9D3C7] rounded-xl overflow-x-auto bg-white shadow-2xs">
+            {/* Mindestbreite 760px verhindert das Quetschen der rechten Spalte */}
+            <table className="w-full text-left text-xs min-w-[760px] table-fixed">
               <thead className="bg-[#FAF8F4] border-b border-[#D9D3C7] text-[#1E2430] font-semibold">
                 <tr>
-                  <th className="p-3 pl-4">#</th>
-                  <th className="p-3">Bauteil</th>
-                  <th className="p-3">Kategorie</th>
-                  <th className="p-3">Details</th>
-                  <th className="p-3 pr-4 text-right">Preis</th>
+                  <th className="p-3.5 pl-4 w-10 text-center">#</th>
+                  <th className="p-3.5 w-[32%]">Bauteil</th>
+                  <th className="p-3.5 w-[22%]">Kategorie</th>
+                  <th className="p-3.5 w-[22%]">Schnittstelle</th>
+                  <th className="p-3.5 pr-4 w-[24%] text-right">Preis & Bezug</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#D9D3C7]/40 text-[#5A6172]">
-                {bom.map((row, idx) => (
-                  <tr key={row.id} className="align-top">
-                    <td className="p-3 pl-4 font-mono text-[#9CA3AF]">{idx + 1}</td>
-                    <td className="p-3 font-medium text-[#1E2430]">
-                      {row.name}
-                      {row.voltage && (
-                        <span className="block font-normal text-[11px] text-[#C46A2B] mt-0.5">
-                          {row.voltage}
+                {bom.map((row, idx) => {
+                  const rawCost = row.cost || '';
+                  const urlMatch = rawCost.match(/https?:\/\/[^\s)]+/);
+                  const directUrl = urlMatch ? urlMatch[0] : null;
+
+                  // Nur den Preis und Händler ohne URL extrahieren
+                  const cleanCostText = rawCost
+                    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+                    .replace(/\(https?:\/\/[^\s)]+\)/g, '')
+                    .replace(/[\(\)]/g, '')
+                    .trim();
+
+                  const tags = row.detail
+                    ? row.detail.split(',').map((t) => t.trim()).filter(Boolean)
+                    : [];
+
+                  return (
+                    <tr key={row.id} className="hover:bg-[#FAF8F4]/40 transition-colors align-top">
+                      {/* Nummer */}
+                      <td className="p-3.5 pl-4 font-mono text-[#9CA3AF] text-center font-medium">
+                        {idx + 1}
+                      </td>
+
+                      {/* Bauteil */}
+                      <td className="p-3.5 pr-2">
+                        <span className="font-semibold text-[#1E2430] text-sm block leading-snug">
+                          {row.name}
                         </span>
-                      )}
-                    </td>
-                    <td className="p-3">{row.category}</td>
-                    <td className="p-3 text-[11px]">{row.detail || '—'}</td>
-                    <td className="p-3 pr-4 text-right font-medium text-[#1E2430] whitespace-nowrap">
-                      {row.cost}
-                    </td>
-                  </tr>
-                ))}
+                        {row.voltage && (
+                          <span className="inline-block mt-1 text-[11px] font-medium text-[#C46A2B] bg-[#FAF8F4] border border-[#D9D3C7] px-2 py-0.5 rounded leading-tight">
+                            {row.voltage}
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Kategorie */}
+                      <td className="p-3.5 font-medium text-[#1E2430]/80 leading-relaxed">
+                        {row.category}
+                      </td>
+
+                      {/* Schnittstellen */}
+                      <td className="p-3.5">
+                        {tags.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {tags.map((tag, tIdx) => (
+                              <span
+                                key={tIdx}
+                                className="bg-gray-100 text-gray-700 font-mono text-[10px] px-1.5 py-0.5 rounded border border-gray-200/60 whitespace-nowrap"
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
+                      </td>
+
+                      {/* Preis & Bezug mit sauberem Abstand */}
+                      <td className="p-3.5 pr-4 text-right">
+                        <span className="font-bold text-[#1E2430] text-xs block leading-tight whitespace-normal">
+                          {cleanCostText || '—'}
+                        </span>
+                        {directUrl && (
+                          <a
+                            href={directUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-0.5 text-[11px] font-semibold text-[#C46A2B] hover:underline mt-1"
+                          >
+                            Shop / Link ↗
+                          </a>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

@@ -12,6 +12,8 @@ import {
   getCircuitDiagram,
   fetchHardware,
   selectHardwareOption,
+  getLatestCode, 
+  generateCode,  
 } from '@/api/api'
 import type {
   AnalyzeResult,
@@ -20,6 +22,7 @@ import type {
   HardwareResult,
   CircuitDiagramResponse,
   HardwareSelectionItem,
+  GeneratedCodeResult,
 } from '@/api/types'
 
 export type ProjectStatus = 'idle' | 'loading' | 'ready' | 'error'
@@ -30,6 +33,7 @@ export interface ProjectState {
   structure: AnalyzeResult | null
   hardwareData: HardwareResult | null
   circuitData: CircuitDiagramResponse | null
+  codeData: GeneratedCodeResult | null
   activeStep: number
   status: ProjectStatus
   error: ApiError | null
@@ -54,6 +58,7 @@ export interface ProjectState {
   setActiveStep: (step: number) => void
   setHardwareData: (hardware: HardwareResult | null) => void
   setCircuitData: (circuit: CircuitDiagramResponse | null) => void
+  setCodeData: (code: GeneratedCodeResult | null) => void
 
   // --- Formular-Setters ---
   setSketchFile: (file: File | null) => void
@@ -81,6 +86,7 @@ export interface ProjectState {
   loadOrGenerateHardware: (message?: string) => Promise<HardwareResult | null>
   chooseHardware: (selections: HardwareSelectionItem[]) => Promise<HardwareResult | null>
   loadOrGenerateCircuit: () => Promise<CircuitDiagramResponse | null>
+  loadOrGenerateCode: () => Promise<GeneratedCodeResult | null>
 }
 
 const initialState = {
@@ -89,6 +95,7 @@ const initialState = {
   structure: null,
   hardwareData: null,
   circuitData: null,
+  codeData: null,
   activeStep: 1,
   status: 'idle' as ProjectStatus,
   error: null,
@@ -105,7 +112,7 @@ const initialState = {
   structureAdjustments: '',
 }
 
-export const useProjectStore = create<ProjectState>()((set, get) => ({
+export const useProjectStore = create<ProjectState>((set, get) => ({
   ...initialState,
 
   // Setters
@@ -123,6 +130,7 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
 
   setHardwareData: (hardwareData) => set({ hardwareData }),
   setCircuitData: (circuitData) => set({ circuitData }),
+  setCodeData: (codeData) => set({ codeData }),
   setStatus: (status) => set({ status }),
   setError: (error) => set({ error, status: error ? 'error' : get().status }),
 
@@ -185,6 +193,13 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
         const circuitData = await getCircuitDiagram(projectId)
         set({ circuitData })
         reachedStep = 4
+      } catch {}
+
+      // 4. Quellcode laden
+      try {
+        const codeData = await getLatestCode(projectId)
+        set({ codeData })
+        reachedStep = 5
       } catch {}
 
       set({ activeStep: reachedStep, status: 'ready' })
@@ -303,6 +318,30 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
       const circuit = await getCircuitDiagram(projectId)
       set({ circuitData: circuit, status: 'ready' })
       return circuit
+    } catch (err) {
+      set({ status: 'error', error: toApiError(err) })
+      return null
+    }
+  },
+
+  loadOrGenerateCode: async () => {
+    const { projectId, codeData } = get()
+    if (!projectId) return null
+    if (codeData) return codeData
+
+    set({ status: 'loading', error: null })
+    try {
+      try {
+        // 1. Zuerst versuchen, existierenden Code aus der DB zu laden (keine KI)
+        const code = await getLatestCode(projectId)
+        set({ codeData: code, status: 'ready' })
+        return code
+      } catch {
+        // 2. Falls noch nicht vorhanden: per KI neu generieren
+        const generated = await generateCode(projectId)
+        set({ codeData: generated, status: 'ready' })
+        return generated
+      }
     } catch (err) {
       set({ status: 'error', error: toApiError(err) })
       return null
