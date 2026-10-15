@@ -48,7 +48,14 @@ export default function AppShowcase() {
       setIsStarting(false);
     }
   }
-
+  function handleFinishProject() {
+    sessionStorage.removeItem('projectId');
+    setProjectId(null);
+    setCurrentProjectId(null);
+    setCurrentStep(1);
+    setHasStarted(false);
+  }
+  
   if (!hasStarted) {
     return (
       <StartPage
@@ -118,19 +125,27 @@ export default function AppShowcase() {
         {currentStep === 6 && <Step6Ergebnis />}
       </div>
 
+      {/* 2. Aktiver Button bei Schritt 6 */}
       <div className="flex justify-end">
         <Button
           variant="default"
           onClick={() => {
             if (currentStep < 6) {
               setCurrentStep(currentStep + 1);
+            } else {
+              handleFinishProject();
             }
           }}
-          disabled={currentStep >= 6}
+          disabled={false}
+          className={
+            currentStep === 6
+              ? 'bg-[#007A5A] hover:bg-[#006248] text-white font-semibold cursor-pointer'
+              : ''
+          }
         >
           {currentStep < 6
             ? `Weiter zu Schritt ${currentStep + 1}`
-            : 'Fertig'}
+            : 'Projekt abschließen ✓'}
         </Button>
       </div>
     </AppShell>

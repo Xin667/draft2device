@@ -4,6 +4,7 @@ import type { HardwareComponent, ControllerComponent, HardwareOption, Controller
 import { useProjectStore } from '@/store/state';
 import { GlossaryText } from '@/components/GlossaryText';
 
+
 /** Extrahiert URL aus Markdown [Text](url) oder direktem String */
 function extractLink(text: string | null | undefined, fallbackUrl?: string | null): string | null {
   if (fallbackUrl && fallbackUrl.startsWith('http')) return fallbackUrl;
@@ -39,6 +40,8 @@ export const Step3Hardware: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(!hardwareData);
   const [saving, setSaving] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [chatMessage, setChatMessage] = useState<string>('');
+  const [isRefining, setIsRefining] = useState<boolean>(false);
 
   // 1. Wenn hardwareData im Store existiert, sofort in die Ansicht übernehmen:
   useEffect(() => {
@@ -128,7 +131,25 @@ export const Step3Hardware: React.FC = () => {
     }
   };
 
+// Chat-Nachricht an POST /hardware absenden und neue Vorschläge abrufen
+  const handleSendChatInstruction = async () => {
+    if (!chatMessage.trim() || !projectId) return;
 
+    setIsRefining(true);
+    setErrorMessage(null);
+
+    try {
+      const updatedData = await loadOrGenerateHardware(chatMessage);
+      if (updatedData?.hardware_components) setComponents(updatedData.hardware_components);
+      if (updatedData?.controllers) setControllers(updatedData.controllers);
+      setChatMessage(''); // Eingabefeld nach Erfolg leeren
+    } catch (err: any) {
+      console.error('Fehler bei der Hardware-Verfeinerung:', err);
+      setErrorMessage(err.message || 'Änderungswunsch konnte nicht verarbeitet werden.');
+    } finally {
+      setIsRefining(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -356,6 +377,43 @@ export const Step3Hardware: React.FC = () => {
           Auswahl wird gespeichert...
         </div>
       )}
+
+      {/* Chat-Eingabe für Hardware */}
+      {/* Freier Hardware-Prompt + Aktionen */}
+      <div className="space-y-4 pt-4">
+        <div className="space-y-2">
+          <label className="block text-sm font-medium text-[#1E2430]">
+            Hardware anpassen (Ergänzende Anweisungen an die KI)
+          </label>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <textarea
+              rows={2}
+              className="flex-1 rounded-xl border border-[#D9D3C7] p-3 text-sm focus:outline-none focus:border-[#C46A2B] focus:ring-1 focus:ring-[#C46A2B] resize-none bg-white placeholder:text-[#5A6172]/60"
+              placeholder="z. B. 'Nutze ein OLED-Display statt Buzzer'"
+              value={chatMessage}
+              onChange={(e) => setChatMessage(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendChatInstruction();
+                }
+              }}
+              disabled={isRefining}
+            />
+            <button
+              type="button"
+              onClick={handleSendChatInstruction}
+              disabled={isRefining || !chatMessage.trim()}
+              className="self-end sm:self-stretch px-5 py-2.5 bg-[#C46A2B] text-white font-medium text-xs rounded-xl hover:bg-[#a95720] transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shrink-0 shadow-xs flex items-center justify-center min-w-[100px]"
+            >
+              {isRefining ? 'Wird angepasst...' : 'Senden'}
+            </button>
+          </div>
+          {errorMessage && (
+            <p className="text-red-500 text-xs mt-1">{errorMessage}</p>
+          )}
+        </div>
+      </div>
     </div>
   );
 };
