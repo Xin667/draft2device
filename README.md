@@ -24,6 +24,10 @@ draft2device/
 └── README.md
 ```
 
+## Architecture
+For a detailed explanation regarding the system architecture, the 6-step process pipeline and the technology decisions, see [Architecture.md](./architecture.md)
+
+
 ## Requirements
 
 - Node.js ≥ 20 (tested with v26)
